@@ -1,0 +1,1501 @@
+## Sentiment Classification on Sentences from the Movie Reviews
+import nltk
+
+# movie review sentences
+from nltk.corpus import sentence_polarity
+import random
+In [5]:
+# get the sentence corpus and look at some sentences
+sentences = sentence_polarity.sents()
+print(len(sentences))
+print(type(sentences))
+print(sentence_polarity.categories())
+
+# sentences are already tokenized
+print(sentences[:4])
+10662
+<class 'nltk.corpus.reader.util.ConcatenatedCorpusView'>
+['neg', 'pos']
+[['simplistic', ',', 'silly', 'and', 'tedious', '.'], ["it's", 'so', 'laddish', 'and', 'juvenile', ',', 'only', 'teenage', 'boys', 'could', 'possibly', 'find', 'it', 'funny', '.'], ['exploitative', 'and', 'largely', 'devoid', 'of', 'the', 'depth', 'or', 'sophistication', 'that', 'would', 'make', 'watching', 'such', 'a', 'graphic', 'treatment', 'of', 'the', 'crimes', 'bearable', '.'], ['[garbus]', 'discards', 'the', 'potential', 'for', 'pathological', 'study', ',', 'exhuming', 'instead', ',', 'the', 'skewed', 'melodrama', 'of', 'the', 'circumstantial', 'situation', '.']]
+In [6]:
+# look at the sentences by category to see how many positive and negative
+pos_sents = sentence_polarity.sents(categories='pos')
+print(len(pos_sents))
+neg_sents = sentence_polarity.sents(categories='neg')
+print(len(neg_sents))
+5331
+5331
+In [7]:
+## setup the movie reviews sentences for classification
+# create a list of documents, each document is one sentence as a list of words paired with category
+documents = [(sent, cat) for cat in sentence_polarity.categories() 
+	for sent in sentence_polarity.sents(categories=cat)]
+
+# look at the first and last documents - consists of all the words in the review
+# followed by the category
+print(documents[0])
+print(documents[-1])
+# randomly reorder documents
+random.shuffle(documents)
+(['simplistic', ',', 'silly', 'and', 'tedious', '.'], 'neg')
+(['provides', 'a', 'porthole', 'into', 'that', 'noble', ',', 'trembling', 'incoherence', 'that', 'defines', 'us', 'all', '.'], 'pos')
+In [8]:
+# get all words from all movie_reviews and put into a frequency distribution
+#   note lowercase, but no stemming or stopwords
+all_words_list = [word for (sent,cat) in documents for word in sent]
+all_words = nltk.FreqDist(all_words_list)
+# get the 2000 most frequently appearing keywords in the corpus
+word_items = all_words.most_common(2000)
+word_features = [word for (word,count) in word_items]
+print(word_features[:50])
+['.', 'the', ',', 'a', 'and', 'of', 'to', 'is', 'in', 'that', 'it', 'as', 'but', 'with', 'film', 'this', 'for', 'its', 'an', 'movie', "it's", 'be', 'on', 'you', 'not', 'by', 'about', 'more', 'one', 'like', 'has', 'are', 'at', 'from', 'than', '"', 'all', '--', 'his', 'have', 'so', 'if', 'or', 'story', 'i', 'too', 'just', 'who', 'into', 'what']
+In [9]:
+# define features (keywords) of a document for a BOW/unigram baseline
+# each feature is 'contains(keyword)' and is true or false depending
+# on whether that keyword is in the document
+def document_features(document, word_features):
+    document_words = set(document)
+    features = {}
+    for word in word_features:
+        features['contains({})'.format(word)] = (word in document_words)
+    return features
+In [10]:
+# get features sets for a document, including keyword features and category feature
+featuresets = [(document_features(d, word_features), c) for (d, c) in documents]
+
+# the feature sets are 2000 words long so you may not want to look at one
+featuresets[0]
+Out[10]:
+({'contains(.)': True,
+  'contains(the)': True,
+  'contains(,)': True,
+  'contains(a)': False,
+  'contains(and)': False,
+  'contains(of)': True,
+  'contains(to)': False,
+  'contains(is)': False,
+  'contains(in)': True,
+  'contains(that)': False,
+  'contains(it)': False,
+  'contains(as)': False,
+  'contains(but)': False,
+  'contains(with)': True,
+  'contains(film)': False,
+  'contains(this)': False,
+  'contains(for)': False,
+  'contains(its)': False,
+  'contains(an)': False,
+  'contains(movie)': True,
+  "contains(it's)": False,
+  'contains(be)': True,
+  'contains(on)': False,
+  'contains(you)': False,
+  'contains(not)': False,
+  'contains(by)': False,
+  'contains(about)': False,
+  'contains(more)': False,
+  'contains(one)': False,
+  'contains(like)': False,
+  'contains(has)': False,
+  'contains(are)': False,
+  'contains(at)': True,
+  'contains(from)': False,
+  'contains(than)': False,
+  'contains(")': False,
+  'contains(all)': False,
+  'contains(--)': False,
+  'contains(his)': True,
+  'contains(have)': False,
+  'contains(so)': False,
+  'contains(if)': True,
+  'contains(or)': False,
+  'contains(story)': False,
+  'contains(i)': False,
+  'contains(too)': True,
+  'contains(just)': False,
+  'contains(who)': False,
+  'contains(into)': False,
+  'contains(what)': False,
+  'contains(most)': False,
+  'contains(out)': False,
+  'contains(no)': False,
+  'contains(much)': True,
+  'contains(even)': False,
+  'contains(good)': False,
+  'contains(up)': True,
+  'contains(will)': False,
+  'contains(comedy)': False,
+  'contains(time)': False,
+  'contains(can)': False,
+  'contains(some)': False,
+  'contains(characters)': False,
+  'contains(only)': False,
+  'contains(little)': False,
+  'contains(way)': True,
+  'contains(their)': False,
+  'contains(funny)': False,
+  'contains(make)': False,
+  'contains(enough)': False,
+  'contains(been)': False,
+  'contains(very)': False,
+  'contains(your)': False,
+  'contains(never)': False,
+  'contains(when)': False,
+  'contains(makes)': False,
+  'contains(there)': False,
+  'contains(may)': False,
+  'contains(which)': False,
+  'contains(us)': False,
+  'contains(work)': False,
+  'contains(best)': False,
+  'contains(he)': True,
+  'contains(bad)': False,
+  "contains(doesn't)": False,
+  'contains(director)': False,
+  'contains())': False,
+  'contains(?)': False,
+  'contains(any)': False,
+  'contains(()': False,
+  'contains(love)': False,
+  'contains(would)': False,
+  'contains(life)': False,
+  'contains(while)': False,
+  'contains(they)': False,
+  'contains(:)': False,
+  'contains(we)': False,
+  'contains(was)': True,
+  'contains(movies)': False,
+  "contains(there's)": False,
+  'contains(well)': False,
+  'contains(new)': False,
+  'contains(her)': False,
+  'contains(through)': False,
+  'contains(could)': False,
+  'contains(something)': False,
+  'contains(really)': False,
+  'contains(how)': False,
+  'contains(made)': False,
+  'contains(them)': False,
+  'contains(performances)': False,
+  'contains(own)': False,
+  'contains(does)': False,
+  'contains(many)': False,
+  'contains(drama)': False,
+  "contains(that's)": False,
+  'contains(should)': False,
+  'contains(those)': False,
+  'contains(films)': False,
+  'contains(plot)': False,
+  'contains(look)': False,
+  'contains(still)': False,
+  'contains(see)': False,
+  "contains(isn't)": False,
+  'contains(every)': False,
+  'contains(two)': True,
+  'contains(nothing)': False,
+  'contains(people)': False,
+  'contains(better)': False,
+  'contains(long)': False,
+  'contains(without)': False,
+  'contains(other)': False,
+  'contains(get)': False,
+  'contains(fun)': False,
+  'contains(off)': False,
+  'contains(action)': False,
+  'contains(being)': False,
+  'contains(both)': False,
+  'contains(great)': False,
+  'contains(though)': False,
+  'contains(might)': False,
+  'contains(big)': False,
+  "contains(')": False,
+  'contains(also)': False,
+  'contains(another)': False,
+  'contains(cast)': False,
+  'contains(do)': False,
+  'contains(humor)': False,
+  'contains(audience)': False,
+  'contains(kind)': False,
+  'contains(first)': False,
+  'contains(between)': False,
+  'contains(sense)': False,
+  'contains(such)': False,
+  'contains(over)': False,
+  'contains(character)': False,
+  'contains(ever)': False,
+  "contains(don't)": False,
+  'contains(;)': False,
+  'contains(feels)': False,
+  'contains(performance)': False,
+  'contains(few)': False,
+  'contains(because)': False,
+  'contains(script)': False,
+  'contains(here)': False,
+  "contains(film's)": False,
+  'contains(far)': False,
+  'contains(often)': False,
+  'contains(thing)': False,
+  'contains(less)': False,
+  'contains(seems)': False,
+  'contains(minutes)': False,
+  'contains(real)': False,
+  'contains(feel)': False,
+  'contains(tale)': False,
+  'contains(picture)': False,
+  'contains(world)': False,
+  'contains(thriller)': False,
+  'contains(almost)': False,
+  "contains(can't)": False,
+  'contains(down)': False,
+  'contains(quite)': False,
+  'contains(documentary)': False,
+  'contains(yet)': False,
+  'contains(interesting)': False,
+  'contains(!)': False,
+  'contains(entertaining)': False,
+  'contains(these)': False,
+  "contains(you're)": False,
+  'contains(rather)': False,
+  'contains(screen)': False,
+  'contains(my)': False,
+  'contains(end)': False,
+  'contains(itself)': False,
+  'contains(hollywood)': False,
+  'contains(seen)': False,
+  'contains(full)': False,
+  'contains(watching)': False,
+  'contains(take)': False,
+  'contains(go)': False,
+  'contains(ultimately)': False,
+  'contains(hard)': False,
+  'contains(heart)': False,
+  'contains(moments)': False,
+  'contains(comes)': False,
+  'contains(de)': False,
+  'contains(romantic)': False,
+  'contains(lot)': False,
+  'contains(despite)': False,
+  'contains(american)': False,
+  'contains(were)': False,
+  'contains(where)': False,
+  'contains(me)': False,
+  'contains(after)': False,
+  'contains(before)': False,
+  'contains(acting)': False,
+  'contains(family)': False,
+  'contains(original)': False,
+  'contains(then)': False,
+  'contains(had)': False,
+  'contains(old)': False,
+  'contains(find)': False,
+  'contains(right)': False,
+  'contains(human)': True,
+  'contains(gets)': False,
+  'contains(worth)': False,
+  'contains(same)': True,
+  'contains(takes)': False,
+  'contains(come)': False,
+  'contains(things)': False,
+  'contains(times)': False,
+  'contains(dialogue)': False,
+  'contains(actors)': False,
+  'contains(back)': False,
+  'contains(scenes)': False,
+  'contains(man)': False,
+  'contains(watch)': False,
+  'contains(our)': False,
+  'contains(material)': False,
+  'contains(compelling)': False,
+  'contains(once)': False,
+  'contains(young)': False,
+  'contains(music)': False,
+  'contains(years)': False,
+  'contains(works)': False,
+  'contains(think)': False,
+  'contains(emotional)': False,
+  'contains(anyone)': False,
+  'contains(seem)': False,
+  'contains(want)': False,
+  'contains(gives)': False,
+  'contains(going)': False,
+  'contains(know)': False,
+  'contains(least)': False,
+  'contains(say)': False,
+  'contains(part)': False,
+  'contains(piece)': False,
+  'contains(sometimes)': False,
+  'contains(again)': False,
+  'contains(cinematic)': False,
+  'contains(entertainment)': False,
+  'contains(pretty)': True,
+  'contains(subject)': False,
+  'contains(point)': False,
+  "contains(you'll)": False,
+  'contains(last)': False,
+  'contains(kids)': False,
+  'contains(give)': False,
+  'contains(keep)': False,
+  'contains(special)': False,
+  'contains(making)': False,
+  'contains(bit)': False,
+  'contains(cinema)': False,
+  'contains(together)': False,
+  'contains(whole)': False,
+  'contains(dull)': False,
+  'contains(why)': False,
+  'contains(fascinating)': False,
+  'contains(fans)': False,
+  'contains(anything)': False,
+  'contains(year)': False,
+  'contains(moving)': False,
+  'contains(since)': False,
+  'contains(-)': False,
+  'contains(away)': False,
+  'contains(style)': False,
+  'contains(manages)': False,
+  'contains(need)': False,
+  'contains(true)': False,
+  'contains(show)': False,
+  'contains(star)': False,
+  'contains(laughs)': False,
+  'contains(history)': False,
+  'contains(clever)': False,
+  'contains(always)': False,
+  'contains(experience)': False,
+  'contains(offers)': False,
+  'contains(sweet)': False,
+  'contains(high)': False,
+  'contains(direction)': False,
+  'contains(simply)': False,
+  'contains(mr)': False,
+  'contains(instead)': False,
+  'contains(dark)': False,
+  'contains(silly)': False,
+  'contains(care)': False,
+  'contains(predictable)': False,
+  'contains(charm)': False,
+  'contains(him)': False,
+  'contains(actually)': False,
+  'contains(whose)': False,
+  'contains(everything)': False,
+  'contains(art)': False,
+  'contains(visual)': False,
+  'contains(nearly)': False,
+  'contains(flick)': False,
+  'contains(around)': False,
+  'contains(series)': False,
+  'contains(matter)': False,
+  'contains(title)': False,
+  'contains(video)': False,
+  'contains(place)': False,
+  'contains(comic)': False,
+  "contains(he's)": False,
+  'contains(narrative)': False,
+  'contains(idea)': False,
+  'contains(done)': False,
+  'contains(goes)': False,
+  'contains(war)': False,
+  'contains(screenplay)': False,
+  'contains(short)': False,
+  'contains(trying)': False,
+  'contains(probably)': True,
+  'contains(women)': False,
+  'contains(now)': False,
+  'contains(genre)': False,
+  'contains(premise)': False,
+  "contains(movie's)": False,
+  'contains(under)': False,
+  'contains(plays)': False,
+  'contains(familiar)': False,
+  'contains(enjoyable)': False,
+  'contains(horror)': False,
+  'contains(turns)': False,
+  'contains(becomes)': False,
+  'contains(although)': False,
+  'contains(home)': False,
+  'contains(set)': False,
+  'contains(filmmakers)': False,
+  'contains(lacks)': False,
+  'contains(she)': False,
+  'contains(three)': False,
+  'contains(engaging)': False,
+  'contains(feeling)': False,
+  'contains(feature)': False,
+  'contains(worst)': False,
+  'contains(smart)': False,
+  'contains(effects)': False,
+  "contains(won't)": False,
+  'contains(power)': False,
+  'contains(enjoy)': False,
+  'contains(day)': False,
+  'contains(effort)': False,
+  'contains(especially)': False,
+  'contains(strong)': False,
+  'contains(study)': False,
+  'contains(half)': False,
+  'contains(amusing)': False,
+  'contains(charming)': False,
+  'contains(intelligent)': False,
+  'contains(ending)': False,
+  'contains(likely)': False,
+  'contains(lack)': False,
+  'contains(boring)': False,
+  'contains(debut)': False,
+  'contains(theater)': False,
+  'contains(portrait)': False,
+  'contains(men)': False,
+  'contains(john)': False,
+  'contains(each)': False,
+  'contains(romance)': False,
+  'contains(sort)': False,
+  'contains(else)': False,
+  'contains(beautiful)': False,
+  'contains(version)': False,
+  'contains(mostly)': False,
+  'contains(certainly)': False,
+  "contains(what's)": False,
+  'contains(put)': False,
+  "contains(you've)": False,
+  'contains(level)': False,
+  'contains(next)': False,
+  'contains(problem)': False,
+  'contains(message)': False,
+  'contains(become)': False,
+  'contains(easy)': False,
+  'contains(looking)': False,
+  'contains(surprisingly)': False,
+  'contains(beautifully)': False,
+  'contains(rare)': False,
+  'contains(along)': False,
+  'contains(quirky)': False,
+  'contains(play)': False,
+  'contains(exercise)': False,
+  'contains(wit)': False,
+  'contains(fine)': False,
+  'contains(solid)': False,
+  'contains(mind)': False,
+  'contains(hours)': False,
+  'contains(lives)': False,
+  'contains(directed)': False,
+  'contains(face)': False,
+  'contains(ideas)': False,
+  'contains(looks)': False,
+  'contains(mess)': False,
+  'contains(sure)': False,
+  'contains(fresh)': False,
+  'contains(leave)': False,
+  'contains(whether)': False,
+  'contains(obvious)': False,
+  'contains(modern)': False,
+  'contains(completely)': False,
+  'contains(energy)': False,
+  'contains(powerful)': False,
+  'contains(french)': False,
+  'contains(past)': False,
+  'contains(interest)': False,
+  'contains(either)': False,
+  'contains(neither)': False,
+  'contains(viewers)': False,
+  'contains(beyond)': False,
+  'contains(fact)': False,
+  'contains(dramatic)': False,
+  'contains(melodrama)': False,
+  'contains(classic)': False,
+  'contains(reason)': False,
+  'contains(shot)': False,
+  'contains(filmmaking)': False,
+  'contains(children)': False,
+  'contains(shows)': False,
+  'contains(tone)': False,
+  "contains(didn't)": False,
+  'contains(delivers)': False,
+  'contains(fails)': False,
+  'contains(stuff)': False,
+  'contains(suspense)': False,
+  'contains(recent)': False,
+  'contains(intriguing)': False,
+  'contains(slow)': False,
+  'contains(left)': False,
+  'contains(believe)': False,
+  'contains(truly)': False,
+  'contains(culture)': False,
+  "contains(i'm)": False,
+  'contains(deeply)': False,
+  'contains(everyone)': False,
+  'contains(jokes)': False,
+  'contains(serious)': False,
+  'contains(himself)': False,
+  'contains(actor)': False,
+  'contains(death)': False,
+  'contains(ends)': False,
+  'contains(ride)': False,
+  'contains(tries)': False,
+  'contains(book)': False,
+  'contains(black)': False,
+  'contains(audiences)': False,
+  'contains(sad)': False,
+  'contains(tv)': False,
+  'contains(small)': False,
+  'contains(occasionally)': False,
+  'contains(spirit)': False,
+  'contains(touching)': False,
+  'contains(production)': False,
+  'contains(light)': False,
+  'contains(formula)': False,
+  'contains(passion)': False,
+  'contains(dumb)': False,
+  'contains(storytelling)': False,
+  'contains(role)': False,
+  'contains(exactly)': False,
+  'contains(hilarious)': False,
+  'contains(remains)': False,
+  'contains(satisfying)': False,
+  'contains(terrific)': False,
+  'contains(proves)': False,
+  'contains(reality)': False,
+  'contains(opera)': False,
+  'contains(camera)': False,
+  'contains(adventure)': False,
+  'contains(got)': False,
+  'contains(must)': False,
+  'contains(scene)': False,
+  'contains(project)': False,
+  'contains(line)': False,
+  'contains(filmmaker)': False,
+  'contains(impossible)': False,
+  'contains(different)': False,
+  'contains(nor)': False,
+  'contains(images)': False,
+  'contains(seeing)': False,
+  'contains(talent)': False,
+  'contains(already)': False,
+  'contains(stories)': False,
+  'contains(above)': False,
+  'contains(personal)': False,
+  'contains(particularly)': False,
+  'contains(simple)': False,
+  'contains(journey)': False,
+  'contains(girl)': False,
+  'contains(easily)': False,
+  'contains(perfect)': False,
+  'contains(attempt)': False,
+  'contains(gags)': False,
+  'contains(pretentious)': False,
+  'contains(complex)': False,
+  'contains(animation)': False,
+  'contains(psychological)': False,
+  'contains(sex)': False,
+  'contains(summer)': False,
+  'contains(turn)': False,
+  'contains(given)': False,
+  'contains(honest)': False,
+  'contains(pleasure)': False,
+  'contains(close)': False,
+  'contains(against)': False,
+  'contains(difficult)': False,
+  'contains(intelligence)': False,
+  'contains(falls)': False,
+  'contains(michael)': False,
+  'contains(flat)': False,
+  'contains(ways)': False,
+  'contains(found)': False,
+  'contains(case)': False,
+  'contains(hour)': False,
+  'contains(earnest)': False,
+  'contains(did)': False,
+  'contains(mystery)': False,
+  'contains(leaves)': False,
+  'contains(cliches)': False,
+  'contains(head)': False,
+  'contains(getting)': False,
+  'contains(coming-of-age)': False,
+  'contains(political)': False,
+  'contains(social)': False,
+  'contains(thought)': False,
+  'contains(visually)': False,
+  'contains(sequel)': False,
+  'contains(none)': False,
+  'contains(uses)': False,
+  'contains(crime)': False,
+  'contains(written)': False,
+  'contains(que)': False,
+  'contains(memorable)': False,
+  'contains(violence)': False,
+  'contains(game)': False,
+  'contains(writing)': False,
+  'contains(tell)': False,
+  'contains(live)': False,
+  'contains(job)': False,
+  'contains(help)': False,
+  'contains(rich)': False,
+  'contains(laugh)': False,
+  'contains(brilliant)': False,
+  'contains(overall)': False,
+  'contains(finally)': False,
+  'contains(wrong)': False,
+  'contains(keeps)': False,
+  'contains(gone)': False,
+  'contains(satire)': False,
+  'contains(side)': False,
+  'contains(told)': False,
+  'contains(days)': False,
+  'contains(cool)': False,
+  'contains(contrived)': False,
+  'contains(otherwise)': False,
+  'contains(boy)': False,
+  'contains(novel)': False,
+  'contains(spy)': False,
+  'contains(elements)': False,
+  'contains(barely)': False,
+  'contains(second)': False,
+  'contains(lost)': False,
+  'contains(needs)': False,
+  'contains(cold)': False,
+  'contains(rarely)': False,
+  'contains(starts)': False,
+  'contains(taste)': False,
+  'contains(o)': False,
+  'contains(nature)': False,
+  'contains(having)': False,
+  'contains(imagine)': False,
+  'contains(acted)': False,
+  'contains(possible)': False,
+  'contains(entirely)': False,
+  'contains(final)': False,
+  'contains(appeal)': False,
+  'contains(guys)': False,
+  'contains(during)': False,
+  'contains(thoughtful)': False,
+  'contains(several)': False,
+  'contains(approach)': False,
+  'contains(creepy)': False,
+  'contains(running)': False,
+  'contains(fairly)': False,
+  'contains(wonderful)': False,
+  'contains(perhaps)': False,
+  'contains(truth)': False,
+  'contains(warm)': False,
+  'contains(y)': False,
+  'contains(excellent)': False,
+  'contains(act)': False,
+  'contains(concept)': False,
+  'contains(surprising)': False,
+  'contains(moral)': False,
+  'contains(insight)': False,
+  'contains(tragedy)': False,
+  'contains(mood)': False,
+  'contains(eyes)': False,
+  'contains(lead)': False,
+  'contains(soap)': False,
+  'contains(wild)': False,
+  'contains(bring)': False,
+  'contains(comedies)': False,
+  'contains(quality)': False,
+  'contains(call)': False,
+  'contains(behind)': False,
+  'contains(expect)': False,
+  'contains(emotionally)': False,
+  'contains(adults)': False,
+  'contains(viewer)': False,
+  'contains(among)': False,
+  'contains(entire)': False,
+  'contains(others)': False,
+  'contains(result)': False,
+  'contains(remarkable)': False,
+  'contains(thoroughly)': False,
+  'contains(engrossing)': False,
+  'contains(themselves)': False,
+  'contains(tedious)': False,
+  'contains(form)': False,
+  'contains(david)': False,
+  'contains(attention)': False,
+  "contains(they're)": False,
+  'contains(hero)': False,
+  'contains(imagination)': False,
+  'contains(start)': False,
+  'contains(four)': False,
+  'contains(teen)': False,
+  'contains(remake)': False,
+  'contains(genuine)': False,
+  'contains(latest)': False,
+  'contains(sharp)': False,
+  'contains(moment)': False,
+  'contains(usual)': False,
+  'contains(rock)': False,
+  'contains(tired)': False,
+  'contains(animated)': False,
+  'contains(change)': False,
+  "contains(you'd)": False,
+  'contains(disney)': False,
+  'contains(bland)': False,
+  'contains(gorgeous)': False,
+  'contains(future)': False,
+  'contains(nice)': False,
+  'contains(quiet)': False,
+  'contains(sci-fi)': False,
+  'contains(add)': False,
+  'contains(witty)': False,
+  'contains(adaptation)': False,
+  'contains(strange)': False,
+  "contains(i've)": False,
+  'contains(perfectly)': False,
+  'contains(la)': False,
+  'contains(epic)': False,
+  'contains(knows)': False,
+  'contains(\x96)': False,
+  'contains(vision)': False,
+  'contains(hope)': False,
+  'contains(until)': False,
+  'contains(gentle)': False,
+  'contains(effective)': False,
+  'contains(points)': False,
+  'contains(wonder)': False,
+  'contains(merely)': False,
+  'contains(maybe)': False,
+  'contains(period)': False,
+  'contains(offer)': False,
+  'contains(plenty)': False,
+  'contains(thanks)': False,
+  'contains(impressive)': False,
+  'contains(worthy)': False,
+  'contains(events)': False,
+  'contains(deep)': False,
+  'contains(parents)': False,
+  'contains(somewhat)': False,
+  'contains(dead)': False,
+  'contains(depth)': False,
+  'contains(appealing)': False,
+  'contains(worse)': False,
+  'contains(taking)': False,
+  'contains(beauty)': False,
+  'contains(begins)': False,
+  'contains(awful)': False,
+  'contains(however)': False,
+  'contains(lots)': False,
+  'contains(surprise)': False,
+  'contains(woman)': False,
+  'contains(sit)': False,
+  'contains(guy)': False,
+  'contains(doing)': False,
+  "contains(year's)": False,
+  'contains(definitely)': False,
+  'contains(straight)': False,
+  'contains(hit)': False,
+  'contains(clear)': False,
+  'contains(fantasy)': False,
+  'contains(career)': False,
+  'contains(provides)': False,
+  'contains(decent)': False,
+  'contains(ambitious)': False,
+  'contains(pure)': False,
+  'contains(unfortunately)': False,
+  'contains(someone)': False,
+  'contains(air)': False,
+  'contains(try)': False,
+  'contains(stupid)': False,
+  'contains(age)': False,
+  'contains(writer-director)': False,
+  'contains(captures)': False,
+  'contains(emotions)': False,
+  'contains(important)': False,
+  'contains(highly)': False,
+  'contains(execution)': False,
+  'contains(welcome)': False,
+  'contains(subtle)': False,
+  'contains(pictures)': False,
+  'contains(throughout)': False,
+  'contains(robert)': False,
+  'contains(run)': False,
+  'contains(able)': False,
+  'contains(inside)': False,
+  'contains(magic)': False,
+  'contains(school)': False,
+  'contains(suffers)': False,
+  'contains(exciting)': False,
+  'contains(thin)': False,
+  'contains(utterly)': False,
+  'contains(historical)': False,
+  'contains(sequences)': False,
+  'contains(view)': False,
+  'contains(ugly)': False,
+  'contains(scary)': False,
+  'contains(sound)': False,
+  'contains(pace)': False,
+  'contains(ii)': False,
+  'contains(brings)': False,
+  'contains(examination)': False,
+  'contains(female)': False,
+  'contains(deserves)': False,
+  'contains(read)': False,
+  'contains(cheap)': False,
+  'contains(relationship)': False,
+  'contains(sustain)': False,
+  'contains(ensemble)': False,
+  'contains(process)': False,
+  'contains(sexual)': False,
+  'contains(lovely)': False,
+  'contains(fire)': False,
+  'contains(certain)': False,
+  'contains(provocative)': False,
+  'contains(based)': False,
+  'contains(coming)': False,
+  'contains(alone)': False,
+  'contains(creative)': False,
+  'contains(playing)': False,
+  'contains(quickly)': False,
+  'contains(city)': False,
+  'contains(hand)': False,
+  'contains(upon)': False,
+  'contains(poignant)': False,
+  'contains(single)': False,
+  'contains(cartoon)': False,
+  'contains(major)': False,
+  'contains(across)': False,
+  'contains(impact)': False,
+  'contains(memory)': False,
+  'contains(wants)': False,
+  'contains(tension)': False,
+  'contains(working)': False,
+  'contains(use)': False,
+  'contains(low)': False,
+  'contains(chemistry)': False,
+  'contains(cute)': False,
+  'contains(deal)': False,
+  'contains(felt)': False,
+  'contains(potential)': False,
+  'contains(except)': False,
+  'contains(middle)': False,
+  'contains(flaws)': False,
+  'contains(words)': False,
+  'contains(used)': False,
+  'contains(delightful)': False,
+  'contains(question)': False,
+  'contains(actress)': False,
+  'contains(2)': False,
+  'contains(rest)': False,
+  'contains(force)': False,
+  'contains(flawed)': False,
+  'contains(bond)': False,
+  'contains(touch)': False,
+  'contains(puts)': False,
+  'contains(taken)': False,
+  'contains(filled)': False,
+  'contains(sensitive)': False,
+  'contains(generic)': False,
+  'contains(stand)': False,
+  'contains(unexpected)': False,
+  'contains(cultural)': False,
+  'contains(winning)': False,
+  'contains(waste)': False,
+  'contains(lacking)': False,
+  'contains(talented)': False,
+  'contains(murder)': False,
+  'contains(yes)': False,
+  'contains(mediocre)': False,
+  'contains(creates)': False,
+  'contains(master)': False,
+  'contains(unfunny)': False,
+  'contains(sentimental)': False,
+  'contains(success)': False,
+  'contains(loud)': False,
+  'contains(odd)': False,
+  'contains(situation)': False,
+  'contains(dog)': False,
+  'contains(melodramatic)': False,
+  'contains(hardly)': False,
+  'contains(weird)': False,
+  'contains(sincere)': False,
+  'contains(cut)': False,
+  'contains(hell)': False,
+  'contains(giving)': False,
+  'contains(unsettling)': False,
+  'contains(eye)': False,
+  'contains(cannot)': False,
+  'contains(heavy)': False,
+  'contains(apart)': False,
+  'contains(college)': False,
+  'contains(hold)': False,
+  'contains(previous)': False,
+  'contains(era)': False,
+  'contains(remember)': False,
+  'contains(relationships)': False,
+  'contains(house)': False,
+  'contains(mildly)': False,
+  'contains(surprises)': False,
+  'contains(slight)': False,
+  'contains(slightly)': False,
+  'contains(mark)': False,
+  'contains(formulaic)': False,
+  'contains(seriously)': False,
+  'contains(reveals)': False,
+  'contains(supposed)': False,
+  'contains(ability)': False,
+  'contains(routine)': False,
+  'contains(watchable)': False,
+  'contains(saw)': False,
+  'contains(issues)': False,
+  'contains(ago)': False,
+  'contains(convincing)': False,
+  'contains(ultimate)': False,
+  'contains(country)': False,
+  'contains(class)': False,
+  'contains(create)': False,
+  'contains(extremely)': False,
+  'contains(*)': False,
+  'contains(crazy)': True,
+  'contains(stylish)': False,
+  'contains(fully)': False,
+  'contains(amount)': False,
+  'contains(leads)': False,
+  'contains(old-fashioned)': False,
+  'contains(crush)': False,
+  'contains(living)': False,
+  'contains(course)': False,
+  'contains(treat)': False,
+  'contains(focus)': False,
+  'contains(contemporary)': False,
+  'contains(terms)': False,
+  'contains(ones)': False,
+  'contains(attempts)': False,
+  'contains(trouble)': False,
+  'contains(pop)': False,
+  'contains(pleasant)': False,
+  'contains(forgettable)': False,
+  'contains(episode)': False,
+  'contains(sets)': False,
+  'contains(uneven)': False,
+  'contains(pacing)': False,
+  'contains(intimate)': False,
+  'contains(twists)': False,
+  'contains(inventive)': False,
+  'contains(finds)': False,
+  'contains(stars)': False,
+  'contains(plain)': False,
+  'contains(indeed)': False,
+  'contains(grace)': False,
+  'contains(grant)': False,
+  'contains(money)': False,
+  'contains(road)': False,
+  'contains(thinking)': False,
+  'contains(largely)': False,
+  'contains(five)': False,
+  'contains(joke)': False,
+  'contains(date)': False,
+  'contains(succeeds)': False,
+  'contains(e)': False,
+  'contains(george)': False,
+  'contains(involved)': False,
+  'contains(steven)': False,
+  'contains(mix)': False,
+  'contains(thrills)': False,
+  'contains(gripping)': False,
+  'contains(tragic)': False,
+  "contains(aren't)": False,
+  'contains(casting)': False,
+  'contains(extreme)': False,
+  'contains(artist)': False,
+  'contains(heaven)': False,
+  'contains(soundtrack)': False,
+  'contains(promise)': False,
+  'contains(appears)': False,
+  'contains(water)': False,
+  'contains(es)': False,
+  'contains(business)': False,
+  'contains(yourself)': False,
+  'contains(involving)': False,
+  'contains(missing)': False,
+  'contains(drag)': False,
+  'contains(problems)': False,
+  'contains(called)': False,
+  'contains(happens)': False,
+  'contains(disturbing)': False,
+  'contains(substance)': False,
+  'contains(masterpiece)': False,
+  'contains(runs)': False,
+  'contains(successful)': False,
+  'contains(complete)': False,
+  'contains(absolutely)': False,
+  'contains(painful)': False,
+  'contains(badly)': False,
+  'contains(themes)': False,
+  "contains(she's)": False,
+  "contains(we've)": False,
+  'contains(williams)': False,
+  'contains(couple)': False,
+  'contains(happy)': False,
+  'contains(considerable)': False,
+  'contains(colorful)': False,
+  'contains(york)': False,
+  'contains(unique)': False,
+  'contains(friendship)': False,
+  'contains(poetry)': False,
+  'contains(recommend)': False,
+  'contains(presents)': False,
+  'contains(goofy)': False,
+  'contains(evil)': False,
+  'contains(triumph)': False,
+  'contains(british)': False,
+  'contains(somehow)': False,
+  "contains(couldn't)": False,
+  'contains(urban)': False,
+  'contains(skin)': False,
+  'contains(refreshing)': False,
+  'contains([a])': False,
+  'contains(target)': False,
+  'contains(situations)': False,
+  'contains(flicks)': False,
+  'contains(viewing)': False,
+  'contains(person)': False,
+  'contains(politics)': False,
+  'contains(blend)': False,
+  'contains(bright)': False,
+  'contains(soul)': False,
+  'contains(terrible)': False,
+  'contains(oscar)': False,
+  'contains(originality)': False,
+  'contains(equally)': False,
+  'contains(effect)': False,
+  'contains(tom)': False,
+  'contains(strangely)': False,
+  'contains(share)': False,
+  'contains(typical)': False,
+  'contains(parts)': False,
+  "contains(man's)": False,
+  'contains(wanted)': False,
+  'contains(mean)': False,
+  'contains(bizarre)': False,
+  'contains(gay)': False,
+  'contains(forced)': False,
+  ...},
+ 'neg')
+In [11]:
+# training using naive Baysian classifier, training set is approximately 90% of data
+train_set, test_set = featuresets[1000:], featuresets[:1000]
+classifier = nltk.NaiveBayesClassifier.train(train_set)
+# evaluate the accuracy of the classifier
+nltk.classify.accuracy(classifier, test_set)
+# the accuracy result may vary since we randomized the documents
+Out[11]:
+0.721
+In [12]:
+# show which features of classifier are most informative
+classifier.show_most_informative_features(30)
+Most Informative Features
+          contains(flat) = True              neg : pos    =     23.6 : 1.0
+        contains(boring) = True              neg : pos    =     18.9 : 1.0
+    contains(engrossing) = True              pos : neg    =     17.7 : 1.0
+      contains(mediocre) = True              neg : pos    =     16.3 : 1.0
+       contains(routine) = True              neg : pos    =     15.6 : 1.0
+       contains(generic) = True              neg : pos    =     15.6 : 1.0
+    contains(refreshing) = True              pos : neg    =     13.1 : 1.0
+      contains(intimate) = True              pos : neg    =     13.1 : 1.0
+            contains(90) = True              neg : pos    =     12.9 : 1.0
+  contains(refreshingly) = True              pos : neg    =     12.4 : 1.0
+          contains(warm) = True              pos : neg    =     11.9 : 1.0
+         contains(stale) = True              neg : pos    =     11.6 : 1.0
+      contains(touching) = True              pos : neg    =     11.3 : 1.0
+   contains(mesmerizing) = True              pos : neg    =     11.1 : 1.0
+     contains(realistic) = True              pos : neg    =     11.1 : 1.0
+     contains(wonderful) = True              pos : neg    =     11.1 : 1.0
+        contains(wasn't) = True              neg : pos    =     10.3 : 1.0
+      contains(mindless) = True              neg : pos    =     10.3 : 1.0
+      contains(provides) = True              pos : neg    =     10.2 : 1.0
+        contains(stupid) = True              neg : pos    =     10.2 : 1.0
+          contains(dull) = True              neg : pos    =     10.0 : 1.0
+   contains(examination) = True              pos : neg    =      9.8 : 1.0
+      contains(captures) = True              pos : neg    =      9.8 : 1.0
+          contains(loud) = True              neg : pos    =      9.8 : 1.0
+           contains(wry) = True              pos : neg    =      9.7 : 1.0
+       contains(quietly) = True              pos : neg    =      9.7 : 1.0
+          contains(save) = True              neg : pos    =      9.6 : 1.0
+      contains(powerful) = True              pos : neg    =      9.5 : 1.0
+       contains(intense) = True              pos : neg    =      9.0 : 1.0
+        contains(tender) = True              pos : neg    =      9.0 : 1.0
+In [13]:
+####   adding features from a sentiment lexicon   ####
+# First look at the program in the file Subjectivity.py to load the subjectivity lexicon
+# copy and paste the definition of the readSubjectivity function
+
+# this function returns a dictionary where you can look up words and get back 
+#     the four items of subjectivity information described above
+def readSubjectivity(path):
+    flexicon = open(path, 'r')
+    # initialize an empty dictionary
+    sldict = { }
+    for line in flexicon:
+        fields = line.split()   # default is to split on whitespace
+        # split each field on the '=' and keep the second part as the value
+        strength = fields[0].split("=")[1]
+        word = fields[2].split("=")[1]
+        posTag = fields[3].split("=")[1]
+        stemmed = fields[4].split("=")[1]
+        polarity = fields[5].split("=")[1]
+        if (stemmed == 'y'):
+            isStemmed = True
+        else:
+            isStemmed = False
+        # put a dictionary entry with the word as the keyword
+        #     and a list of the other values
+        sldict[word] = [strength, posTag, isStemmed, polarity]
+    return sldict
+In [14]:
+# create a path to where the subjectivity file resides on your disk
+# this example is for my mac
+# nancymacpath = "/Users/njmccrac1/AAAdocs/research/subjectivitylexicon/hltemnlp05clues/subjclueslen1-HLTEMNLP05.tff"
+
+# create your own path to the subjclues file
+SLpath = "/Users/triveninaik/Desktop/NLP/week10/subjclueslen1-HLTEMNLP05.tff"
+SL = readSubjectivity(SLpath)
+
+# how many words are in the dictionary
+len(SL.keys())
+Out[14]:
+6885
+In [15]:
+# define features that include word counts of subjectivity words
+# negative feature will have number of weakly negative words +
+#    2 * number of strongly negative words
+# positive feature has similar definition
+#    not counting neutral words
+def SL_features(document, word_features, SL):
+    document_words = set(document)
+    features = {}
+    for word in word_features:
+        features['contains({})'.format(word)] = (word in document_words)
+    # count variables for the 4 classes of subjectivity
+    weakPos = 0
+    strongPos = 0
+    weakNeg = 0
+    strongNeg = 0
+    for word in document_words:
+        if word in SL:
+            strength, posTag, isStemmed, polarity = SL[word]
+            if strength == 'weaksubj' and polarity == 'positive' and posTag == 'verb':
+                weakPos += 1
+            if strength == 'strongsubj' and polarity == 'positive' and posTag == 'noun':
+                strongPos += 1
+            if strength == 'weaksubj' and polarity == 'negative':
+                weakNeg += 1
+            if strength == 'strongsubj' and polarity == 'negative':
+                strongNeg += 1
+            features['positivecount'] = weakPos + (2 * strongPos)
+            features['negativecount'] = weakNeg + (2 * strongNeg)      
+    return features
+In [16]:
+SL_featuresets = [(SL_features(d, word_features, SL), c) for (d, c) in documents]
+
+# show just the two sentiment lexicon features in document 0
+print(SL_featuresets[0][0]['positivecount'])
+print(SL_featuresets[0][0]['negativecount'])
+0
+6
+In [17]:
+# this gives the label of document 0
+SL_featuresets[0][1]
+# number of features for document 0
+len(SL_featuresets[0][0].keys())
+Out[17]:
+2002
+In [18]:
+# retrain the classifier using these features
+train_set, test_set = SL_featuresets[1000:], SL_featuresets[:1000]
+classifier = nltk.NaiveBayesClassifier.train(train_set)
+nltk.classify.accuracy(classifier, test_set)
+Out[18]:
+0.738
+In [19]:
+## cross-validation ##
+# this function takes the number of folds, the feature sets
+# it iterates over the folds, using different sections for training and testing in turn
+#   it prints the accuracy for each fold and the average accuracy at the end
+def cross_validation_accuracy(num_folds, featuresets):
+    subset_size = int(len(featuresets)/num_folds)
+    accuracy_list = []
+    # iterate over the folds
+    for i in range(num_folds):
+        test_this_round = featuresets[(i*subset_size):][:subset_size]
+        train_this_round = featuresets[:(i*subset_size)] + featuresets[((i+1)*subset_size):]
+        # train using train_this_round
+        classifier = nltk.NaiveBayesClassifier.train(train_this_round)
+        # evaluate against test_this_round and save accuracy
+        accuracy_this_round = nltk.classify.accuracy(classifier, test_this_round)
+        print (i, accuracy_this_round)
+        accuracy_list.append(accuracy_this_round)
+    # find mean accuracy over all rounds
+    print ('mean accuracy', sum(accuracy_list) / num_folds)
+In [20]:
+# perform the cross-validation on the featuresets with word features and generate accuracy
+num_folds = 5
+cross_validation_accuracy(num_folds, featuresets)
+0 0.7326454033771107
+1 0.7448405253283302
+2 0.7439024390243902
+3 0.7603189493433395
+4 0.7378048780487805
+mean accuracy 0.7439024390243902
+In [21]:
+# define features that include word counts of subjectivity words
+# negative feature will have number of weakly negative words +
+#    2 * number of strongly negative words
+# positive feature has similar definition
+#    not counting neutral words
+def SL_features(document, word_features, SL):
+    document_words = set(document)
+    tagged_words = nltk.pos_tag(document)
+    features = {}
+    for word in word_features:
+        features['contains({})'.format(word)] = (word in document_words)
+    # count variables for the 4 classes of subjectivity
+    weakPos = 0
+    strongPos = 0
+    weakNeg = 0
+    strongNeg = 0
+    
+    for word in word_features:
+        features['contains({})'.format(word)] = (word in document_words)
+        
+    numNoun = 0
+    numVerb = 0
+    numAdj = 0
+    numAdverb = 0
+    
+    for word in document_words:
+        if word in SL:
+            strength, posTag, isStemmed, polarity = SL[word]
+            if strength == 'weaksubj' and polarity == 'positive' and posTag == 'verb':
+                weakPos += 1
+            if strength == 'strongsubj' and polarity == 'positive' and posTag == 'noun':
+                strongPos += 1
+            if strength == 'weaksubj' and polarity == 'negative':
+                weakNeg += 1
+            if strength == 'strongsubj' and polarity == 'negative':
+                strongNeg += 1
+            features['positivecount'] = weakPos + (2 * strongPos)
+            features['negativecount'] = weakNeg + (2 * strongNeg) 
+            
+    for (word, tag) in tagged_words:
+        if tag.startswith('N'): numNoun += 1
+        if tag.startswith('V'): numVerb += 1
+        if tag.startswith('J'): numAdj += 1
+        if tag.startswith('R'): numAdverb += 1
+    features['nouns'] = numNoun
+    features['verbs'] = numVerb
+    features['adjectives'] = numAdj
+    features['adverbs'] = numAdverb
+    return features
+In [22]:
+SL_featuresets = [(SL_features(d, word_features, SL), c) for (d, c) in documents]
+
+# show just the two sentiment lexicon features in document 0
+print(SL_featuresets[0][0]['positivecount'])
+print(SL_featuresets[0][0]['negativecount'])
+
+# define feature sets using this function
+#POS_featuresets = [(SL_features(d, word_features, 0), c) for (d, c) in documents]
+# number of features for document 0
+print(len(SL_featuresets[0][0].keys()))
+0
+6
+2006
+In [23]:
+# this gives the label of document 0
+SL_featuresets[0][1]
+# number of features for document 0
+len(SL_featuresets[0][0].keys())
+# the first sentence
+print(documents[0])
+
+# the pos tag features for this sentence
+print('num nouns', SL_featuresets[0][0]['nouns'])
+print('num verbs', SL_featuresets[0][0]['verbs'])
+print('num adjectives', SL_featuresets[0][0]['adjectives'])
+print('num adverbs', SL_featuresets[0][0]['adverbs'])
+(['if', 'welles', 'was', 'unhappy', 'at', 'the', 'prospect', 'of', 'the', 'human', 'race', 'splitting', 'in', 'two', ',', 'he', 'probably', "wouldn't", 'be', 'too', 'crazy', 'with', 'his', "great-grandson's", 'movie', 'splitting', 'up', 'in', 'pretty', 'much', 'the', 'same', 'way', '.'], 'neg')
+num nouns 6
+num verbs 4
+num adjectives 6
+num adverbs 4
+In [24]:
+# retrain the classifier using these features
+train_set, test_set = SL_featuresets[1000:], SL_featuresets[:1000]
+classifier = nltk.NaiveBayesClassifier.train(train_set)
+nltk.classify.accuracy(classifier, test_set)
+Out[24]:
+0.731
+In [25]:
+## cross-validation ##
+# this function takes the number of folds, the feature sets
+# it iterates over the folds, using different sections for training and testing in turn
+#   it prints the accuracy for each fold and the average accuracy at the end
+def cross_validation_accuracy(num_folds, featuresets):
+    subset_size = int(len(featuresets)/num_folds)
+    accuracy_list = []
+    # iterate over the folds
+    for i in range(num_folds):
+        test_this_round = featuresets[(i*subset_size):][:subset_size]
+        train_this_round = featuresets[:(i*subset_size)] + featuresets[((i+1)*subset_size):]
+        # train using train_this_round
+        classifier = nltk.NaiveBayesClassifier.train(train_this_round)
+        # evaluate against test_this_round and save accuracy
+        accuracy_this_round = nltk.classify.accuracy(classifier, test_this_round)
+        print (i, accuracy_this_round)
+        accuracy_list.append(accuracy_this_round)
+    # find mean accuracy over all rounds
+    print ('mean accuracy', sum(accuracy_list) / num_folds)
+In [26]:
+# perform the cross-validation on the featuresets with word features and generate accuracy
+num_folds = 5
+cross_validation_accuracy(num_folds, featuresets)
+0 0.7326454033771107
+1 0.7448405253283302
+2 0.7439024390243902
+3 0.7603189493433395
+4 0.7378048780487805
+mean accuracy 0.7439024390243902
+In [27]:
+####   adding Bigram features   ####
+# set up for using bigrams
+from nltk.collocations import *
+bigram_measures = nltk.collocations.BigramAssocMeasures()
+In [28]:
+# create the bigram finder on all the words in sequence
+print(all_words_list[:50])
+finder = BigramCollocationFinder.from_words(all_words_list)
+['if', 'welles', 'was', 'unhappy', 'at', 'the', 'prospect', 'of', 'the', 'human', 'race', 'splitting', 'in', 'two', ',', 'he', 'probably', "wouldn't", 'be', 'too', 'crazy', 'with', 'his', "great-grandson's", 'movie', 'splitting', 'up', 'in', 'pretty', 'much', 'the', 'same', 'way', '.', 'before', 'long', ',', 'the', 'film', 'starts', 'playing', 'like', 'general', 'hospital', 'crossed', 'with', 'a', 'saturday', 'night', 'live']
+In [29]:
+# define the top 500 bigrams using the chi squared measure
+bigram_features = finder.nbest(bigram_measures.raw_freq, 500)
+print(bigram_features[:50])
+[('.', '.'), ('.', 'the'), ('of', 'the'), ('.', 'a'), (',', 'but'), (',', 'and'), ('in', 'the'), ('is', 'a'), ('the', 'film'), ('.', "it's"), (',', 'the'), ('of', 'a'), ('to', 'the'), ('and', 'the'), ('to', 'be'), ('the', 'movie'), ('.', 'this'), ('.', 'it'), ('for', 'the'), ('it', 'is'), ('with', 'a'), ('.', 'an'), ('as', 'a'), ('in', 'a'), ('on', 'the'), ('one', 'of'), ('and', 'a'), ('this', 'is'), ('a', 'movie'), ("it's", 'a'), (',', 'it'), ('.', 'if'), ('with', 'the'), ('film', 'is'), ('like', 'a'), (',', 'a'), ('for', 'a'), ('it', '.'), ('the', 'most'), ('.', 'but'), ('but', 'it'), ('film', '.'), ('of', 'its'), ('movie', '.'), (',', "it's"), (',', 'this'), ('.', 'i'), ('a', 'film'), ('as', 'the'), ('from', 'the')]
+In [30]:
+# examples to demonstrate the bigram feature function definition
+sent = ['Arthur','carefully','rode','the','brown','horse','around','the','castle']
+sentbigrams = list(nltk.bigrams(sent))
+print(sentbigrams)
+[('Arthur', 'carefully'), ('carefully', 'rode'), ('rode', 'the'), ('the', 'brown'), ('brown', 'horse'), ('horse', 'around'), ('around', 'the'), ('the', 'castle')]
+In [31]:
+# for a single bigram, test if it's in the sentence bigrams and format the feature name
+bigram = ('brown','horse')
+print(bigram in sentbigrams)
+print('bigram({} {})'.format(bigram[0], bigram[1]))
+True
+bigram(brown horse)
+In [32]:
+# define features that include words as before 
+# add the most frequent significant bigrams
+# this function takes the list of words in a document as an argument and returns a feature dictionary
+# it depends on the variables word_features and bigram_features
+def bigram_document_features(document, word_features, bigram_features):
+    document_words = set(document)
+    document_bigrams = nltk.bigrams(document)
+    tagged_words = nltk.pos_tag(document)
+    features = {}
+    for word in word_features:
+        features['contains({})'.format(word)] = (word in document_words)
+        
+    numNoun = 0
+    numVerb = 0
+    numAdj = 0
+    numAdverb = 0
+    
+    for word in word_features:
+        features['contains({})'.format(word)] = (word in document_words)
+    # count variables for the 4 classes of subjectivity
+    weakPos = 0
+    strongPos = 0
+    weakNeg = 0
+    strongNeg = 0
+    
+    for word in document_words:
+        if word in SL:
+            strength, posTag, isStemmed, polarity = SL[word]
+            if strength == 'weaksubj' and polarity == 'positive' and posTag == 'verb':
+                weakPos += 1
+            if strength == 'strongsubj' and polarity == 'positive' and posTag == 'noun':
+                strongPos += 1
+            if strength == 'weaksubj' and polarity == 'negative':
+                weakNeg += 1
+            if strength == 'strongsubj' and polarity == 'negative':
+                strongNeg += 1
+            features['positivecount'] = weakPos + (2 * strongPos)
+            features['negativecount'] = weakNeg + (2 * strongNeg) 
+    
+    for (word, tag) in tagged_words:
+        if tag.startswith('N'): numNoun += 1
+        if tag.startswith('V'): numVerb += 1
+        if tag.startswith('J'): numAdj += 1
+        if tag.startswith('R'): numAdverb += 1
+    features['nouns'] = numNoun
+    features['verbs'] = numVerb
+    features['adjectives'] = numAdj
+    features['adverbs'] = numAdverb
+        
+    for bigram in bigram_features:
+        features['bigram({} {})'.format(bigram[0], bigram[1])] = (bigram in document_bigrams)    
+    return features
+In [33]:
+# use this function to create feature sets for all sentences
+bigram_featuresets = [(bigram_document_features(d, word_features, bigram_features), c) for (d, c) in documents]
+
+# number of features for document 0
+print(len(bigram_featuresets[0][0].keys()))
+
+# features in document 0
+print(bigram_featuresets[0][0])
+
+print(len(bigram_featuresets[0][0].keys()))
+2506
+{'contains(.)': True, 'contains(the)': True, 'contains(,)': True, 'contains(a)': False, 'contains(and)': False, 'contains(of)': True, 'contains(to)': False, 'contains(is)': False, 'contains(in)': True, 'contains(that)': False, 'contains(it)': False, 'contains(as)': False, 'contains(but)': False, 'contains(with)': True, 'contains(film)': False, 'contains(this)': False, 'contains(for)': False, 'contains(its)': False, 'contains(an)': False, 'contains(movie)': True, "contains(it's)": False, 'contains(be)': True, 'contains(on)': False, 'contains(you)': False, 'contains(not)': False, 'contains(by)': False, 'contains(about)': False, 'contains(more)': False, 'contains(one)': False, 'contains(like)': False, 'contains(has)': False, 'contains(are)': False, 'contains(at)': True, 'contains(from)': False, 'contains(than)': False, 'contains(")': False, 'contains(all)': False, 'contains(--)': False, 'contains(his)': True, 'contains(have)': False, 'contains(so)': False, 'contains(if)': True, 'contains(or)': False, 'contains(story)': False, 'contains(i)': False, 'contains(too)': True, 'contains(just)': False, 'contains(who)': False, 'contains(into)': False, 'contains(what)': False, 'contains(most)': False, 'contains(out)': False, 'contains(no)': False, 'contains(much)': True, 'contains(even)': False, 'contains(good)': False, 'contains(up)': True, 'contains(will)': False, 'contains(comedy)': False, 'contains(time)': False, 'contains(can)': False, 'contains(some)': False, 'contains(characters)': False, 'contains(only)': False, 'contains(little)': False, 'contains(way)': True, 'contains(their)': False, 'contains(funny)': False, 'contains(make)': False, 'contains(enough)': False, 'contains(been)': False, 'contains(very)': False, 'contains(your)': False, 'contains(never)': False, 'contains(when)': False, 'contains(makes)': False, 'contains(there)': False, 'contains(may)': False, 'contains(which)': False, 'contains(us)': False, 'contains(work)': False, 'contains(best)': False, 'contains(he)': True, 'contains(bad)': False, "contains(doesn't)": False, 'contains(director)': False, 'contains())': False, 'contains(?)': False, 'contains(any)': False, 'contains(()': False, 'contains(love)': False, 'contains(would)': False, 'contains(life)': False, 'contains(while)': False, 'contains(they)': False, 'contains(:)': False, 'contains(we)': False, 'contains(was)': True, 'contains(movies)': False, "contains(there's)": False, 'contains(well)': False, 'contains(new)': False, 'contains(her)': False, 'contains(through)': False, 'contains(could)': False, 'contains(something)': False, 'contains(really)': False, 'contains(how)': False, 'contains(made)': False, 'contains(them)': False, 'contains(performances)': False, 'contains(own)': False, 'contains(does)': False, 'contains(many)': False, 'contains(drama)': False, "contains(that's)": False, 'contains(should)': False, 'contains(those)': False, 'contains(films)': False, 'contains(plot)': False, 'contains(look)': False, 'contains(still)': False, 'contains(see)': False, "contains(isn't)": False, 'contains(every)': False, 'contains(two)': True, 'contains(nothing)': False, 'contains(people)': False, 'contains(better)': False, 'contains(long)': False, 'contains(without)': False, 'contains(other)': False, 'contains(get)': False, 'contains(fun)': False, 'contains(off)': False, 'contains(action)': False, 'contains(being)': False, 'contains(both)': False, 'contains(great)': False, 'contains(though)': False, 'contains(might)': False, 'contains(big)': False, "contains(')": False, 'contains(also)': False, 'contains(another)': False, 'contains(cast)': False, 'contains(do)': False, 'contains(humor)': False, 'contains(audience)': False, 'contains(kind)': False, 'contains(first)': False, 'contains(between)': False, 'contains(sense)': False, 'contains(such)': False, 'contains(over)': False, 'contains(character)': False, 'contains(ever)': False, "contains(don't)": False, 'contains(;)': False, 'contains(feels)': False, 'contains(performance)': False, 'contains(few)': False, 'contains(because)': False, 'contains(script)': False, 'contains(here)': False, "contains(film's)": False, 'contains(far)': False, 'contains(often)': False, 'contains(thing)': False, 'contains(less)': False, 'contains(seems)': False, 'contains(minutes)': False, 'contains(real)': False, 'contains(feel)': False, 'contains(tale)': False, 'contains(picture)': False, 'contains(world)': False, 'contains(thriller)': False, 'contains(almost)': False, "contains(can't)": False, 'contains(down)': False, 'contains(quite)': False, 'contains(documentary)': False, 'contains(yet)': False, 'contains(interesting)': False, 'contains(!)': False, 'contains(entertaining)': False, 'contains(these)': False, "contains(you're)": False, 'contains(rather)': False, 'contains(screen)': False, 'contains(my)': False, 'contains(end)': False, 'contains(itself)': False, 'contains(hollywood)': False, 'contains(seen)': False, 'contains(full)': False, 'contains(watching)': False, 'contains(take)': False, 'contains(go)': False, 'contains(ultimately)': False, 'contains(hard)': False, 'contains(heart)': False, 'contains(moments)': False, 'contains(comes)': False, 'contains(de)': False, 'contains(romantic)': False, 'contains(lot)': False, 'contains(despite)': False, 'contains(american)': False, 'contains(were)': False, 'contains(where)': False, 'contains(me)': False, 'contains(after)': False, 'contains(before)': False, 'contains(acting)': False, 'contains(family)': False, 'contains(original)': False, 'contains(then)': False, 'contains(had)': False, 'contains(old)': False, 'contains(find)': False, 'contains(right)': False, 'contains(human)': True, 'contains(gets)': False, 'contains(worth)': False, 'contains(same)': True, 'contains(takes)': False, 'contains(come)': False, 'contains(things)': False, 'contains(times)': False, 'contains(dialogue)': False, 'contains(actors)': False, 'contains(back)': False, 'contains(scenes)': False, 'contains(man)': False, 'contains(watch)': False, 'contains(our)': False, 'contains(material)': False, 'contains(compelling)': False, 'contains(once)': False, 'contains(young)': False, 'contains(music)': False, 'contains(years)': False, 'contains(works)': False, 'contains(think)': False, 'contains(emotional)': False, 'contains(anyone)': False, 'contains(seem)': False, 'contains(want)': False, 'contains(gives)': False, 'contains(going)': False, 'contains(know)': False, 'contains(least)': False, 'contains(say)': False, 'contains(part)': False, 'contains(piece)': False, 'contains(sometimes)': False, 'contains(again)': False, 'contains(cinematic)': False, 'contains(entertainment)': False, 'contains(pretty)': True, 'contains(subject)': False, 'contains(point)': False, "contains(you'll)": False, 'contains(last)': False, 'contains(kids)': False, 'contains(give)': False, 'contains(keep)': False, 'contains(special)': False, 'contains(making)': False, 'contains(bit)': False, 'contains(cinema)': False, 'contains(together)': False, 'contains(whole)': False, 'contains(dull)': False, 'contains(why)': False, 'contains(fascinating)': False, 'contains(fans)': False, 'contains(anything)': False, 'contains(year)': False, 'contains(moving)': False, 'contains(since)': False, 'contains(-)': False, 'contains(away)': False, 'contains(style)': False, 'contains(manages)': False, 'contains(need)': False, 'contains(true)': False, 'contains(show)': False, 'contains(star)': False, 'contains(laughs)': False, 'contains(history)': False, 'contains(clever)': False, 'contains(always)': False, 'contains(experience)': False, 'contains(offers)': False, 'contains(sweet)': False, 'contains(high)': False, 'contains(direction)': False, 'contains(simply)': False, 'contains(mr)': False, 'contains(instead)': False, 'contains(dark)': False, 'contains(silly)': False, 'contains(care)': False, 'contains(predictable)': False, 'contains(charm)': False, 'contains(him)': False, 'contains(actually)': False, 'contains(whose)': False, 'contains(everything)': False, 'contains(art)': False, 'contains(visual)': False, 'contains(nearly)': False, 'contains(flick)': False, 'contains(around)': False, 'contains(series)': False, 'contains(matter)': False, 'contains(title)': False, 'contains(video)': False, 'contains(place)': False, 'contains(comic)': False, "contains(he's)": False, 'contains(narrative)': False, 'contains(idea)': False, 'contains(done)': False, 'contains(goes)': False, 'contains(war)': False, 'contains(screenplay)': False, 'contains(short)': False, 'contains(trying)': False, 'contains(probably)': True, 'contains(women)': False, 'contains(now)': False, 'contains(genre)': False, 'contains(premise)': False, "contains(movie's)": False, 'contains(under)': False, 'contains(plays)': False, 'contains(familiar)': False, 'contains(enjoyable)': False, 'contains(horror)': False, 'contains(turns)': False, 'contains(becomes)': False, 'contains(although)': False, 'contains(home)': False, 'contains(set)': False, 'contains(filmmakers)': False, 'contains(lacks)': False, 'contains(she)': False, 'contains(three)': False, 'contains(engaging)': False, 'contains(feeling)': False, 'contains(feature)': False, 'contains(worst)': False, 'contains(smart)': False, 'contains(effects)': False, "contains(won't)": False, 'contains(power)': False, 'contains(enjoy)': False, 'contains(day)': False, 'contains(effort)': False, 'contains(especially)': False, 'contains(strong)': False, 'contains(study)': False, 'contains(half)': False, 'contains(amusing)': False, 'contains(charming)': False, 'contains(intelligent)': False, 'contains(ending)': False, 'contains(likely)': False, 'contains(lack)': False, 'contains(boring)': False, 'contains(debut)': False, 'contains(theater)': False, 'contains(portrait)': False, 'contains(men)': False, 'contains(john)': False, 'contains(each)': False, 'contains(romance)': False, 'contains(sort)': False, 'contains(else)': False, 'contains(beautiful)': False, 'contains(version)': False, 'contains(mostly)': False, 'contains(certainly)': False, "contains(what's)": False, 'contains(put)': False, "contains(you've)": False, 'contains(level)': False, 'contains(next)': False, 'contains(problem)': False, 'contains(message)': False, 'contains(become)': False, 'contains(easy)': False, 'contains(looking)': False, 'contains(surprisingly)': False, 'contains(beautifully)': False, 'contains(rare)': False, 'contains(along)': False, 'contains(quirky)': False, 'contains(play)': False, 'contains(exercise)': False, 'contains(wit)': False, 'contains(fine)': False, 'contains(solid)': False, 'contains(mind)': False, 'contains(hours)': False, 'contains(lives)': False, 'contains(directed)': False, 'contains(face)': False, 'contains(ideas)': False, 'contains(looks)': False, 'contains(mess)': False, 'contains(sure)': False, 'contains(fresh)': False, 'contains(leave)': False, 'contains(whether)': False, 'contains(obvious)': False, 'contains(modern)': False, 'contains(completely)': False, 'contains(energy)': False, 'contains(powerful)': False, 'contains(french)': False, 'contains(past)': False, 'contains(interest)': False, 'contains(either)': False, 'contains(neither)': False, 'contains(viewers)': False, 'contains(beyond)': False, 'contains(fact)': False, 'contains(dramatic)': False, 'contains(melodrama)': False, 'contains(classic)': False, 'contains(reason)': False, 'contains(shot)': False, 'contains(filmmaking)': False, 'contains(children)': False, 'contains(shows)': False, 'contains(tone)': False, "contains(didn't)": False, 'contains(delivers)': False, 'contains(fails)': False, 'contains(stuff)': False, 'contains(suspense)': False, 'contains(recent)': False, 'contains(intriguing)': False, 'contains(slow)': False, 'contains(left)': False, 'contains(believe)': False, 'contains(truly)': False, 'contains(culture)': False, "contains(i'm)": False, 'contains(deeply)': False, 'contains(everyone)': False, 'contains(jokes)': False, 'contains(serious)': False, 'contains(himself)': False, 'contains(actor)': False, 'contains(death)': False, 'contains(ends)': False, 'contains(ride)': False, 'contains(tries)': False, 'contains(book)': False, 'contains(black)': False, 'contains(audiences)': False, 'contains(sad)': False, 'contains(tv)': False, 'contains(small)': False, 'contains(occasionally)': False, 'contains(spirit)': False, 'contains(touching)': False, 'contains(production)': False, 'contains(light)': False, 'contains(formula)': False, 'contains(passion)': False, 'contains(dumb)': False, 'contains(storytelling)': False, 'contains(role)': False, 'contains(exactly)': False, 'contains(hilarious)': False, 'contains(remains)': False, 'contains(satisfying)': False, 'contains(terrific)': False, 'contains(proves)': False, 'contains(reality)': False, 'contains(opera)': False, 'contains(camera)': False, 'contains(adventure)': False, 'contains(got)': False, 'contains(must)': False, 'contains(scene)': False, 'contains(project)': False, 'contains(line)': False, 'contains(filmmaker)': False, 'contains(impossible)': False, 'contains(different)': False, 'contains(nor)': False, 'contains(images)': False, 'contains(seeing)': False, 'contains(talent)': False, 'contains(already)': False, 'contains(stories)': False, 'contains(above)': False, 'contains(personal)': False, 'contains(particularly)': False, 'contains(simple)': False, 'contains(journey)': False, 'contains(girl)': False, 'contains(easily)': False, 'contains(perfect)': False, 'contains(attempt)': False, 'contains(gags)': False, 'contains(pretentious)': False, 'contains(complex)': False, 'contains(animation)': False, 'contains(psychological)': False, 'contains(sex)': False, 'contains(summer)': False, 'contains(turn)': False, 'contains(given)': False, 'contains(honest)': False, 'contains(pleasure)': False, 'contains(close)': False, 'contains(against)': False, 'contains(difficult)': False, 'contains(intelligence)': False, 'contains(falls)': False, 'contains(michael)': False, 'contains(flat)': False, 'contains(ways)': False, 'contains(found)': False, 'contains(case)': False, 'contains(hour)': False, 'contains(earnest)': False, 'contains(did)': False, 'contains(mystery)': False, 'contains(leaves)': False, 'contains(cliches)': False, 'contains(head)': False, 'contains(getting)': False, 'contains(coming-of-age)': False, 'contains(political)': False, 'contains(social)': False, 'contains(thought)': False, 'contains(visually)': False, 'contains(sequel)': False, 'contains(none)': False, 'contains(uses)': False, 'contains(crime)': False, 'contains(written)': False, 'contains(que)': False, 'contains(memorable)': False, 'contains(violence)': False, 'contains(game)': False, 'contains(writing)': False, 'contains(tell)': False, 'contains(live)': False, 'contains(job)': False, 'contains(help)': False, 'contains(rich)': False, 'contains(laugh)': False, 'contains(brilliant)': False, 'contains(overall)': False, 'contains(finally)': False, 'contains(wrong)': False, 'contains(keeps)': False, 'contains(gone)': False, 'contains(satire)': False, 'contains(side)': False, 'contains(told)': False, 'contains(days)': False, 'contains(cool)': False, 'contains(contrived)': False, 'contains(otherwise)': False, 'contains(boy)': False, 'contains(novel)': False, 'contains(spy)': False, 'contains(elements)': False, 'contains(barely)': False, 'contains(second)': False, 'contains(lost)': False, 'contains(needs)': False, 'contains(cold)': False, 'contains(rarely)': False, 'contains(starts)': False, 'contains(taste)': False, 'contains(o)': False, 'contains(nature)': False, 'contains(having)': False, 'contains(imagine)': False, 'contains(acted)': False, 'contains(possible)': False, 'contains(entirely)': False, 'contains(final)': False, 'contains(appeal)': False, 'contains(guys)': False, 'contains(during)': False, 'contains(thoughtful)': False, 'contains(several)': False, 'contains(approach)': False, 'contains(creepy)': False, 'contains(running)': False, 'contains(fairly)': False, 'contains(wonderful)': False, 'contains(perhaps)': False, 'contains(truth)': False, 'contains(warm)': False, 'contains(y)': False, 'contains(excellent)': False, 'contains(act)': False, 'contains(concept)': False, 'contains(surprising)': False, 'contains(moral)': False, 'contains(insight)': False, 'contains(tragedy)': False, 'contains(mood)': False, 'contains(eyes)': False, 'contains(lead)': False, 'contains(soap)': False, 'contains(wild)': False, 'contains(bring)': False, 'contains(comedies)': False, 'contains(quality)': False, 'contains(call)': False, 'contains(behind)': False, 'contains(expect)': False, 'contains(emotionally)': False, 'contains(adults)': False, 'contains(viewer)': False, 'contains(among)': False, 'contains(entire)': False, 'contains(others)': False, 'contains(result)': False, 'contains(remarkable)': False, 'contains(thoroughly)': False, 'contains(engrossing)': False, 'contains(themselves)': False, 'contains(tedious)': False, 'contains(form)': False, 'contains(david)': False, 'contains(attention)': False, "contains(they're)": False, 'contains(hero)': False, 'contains(imagination)': False, 'contains(start)': False, 'contains(four)': False, 'contains(teen)': False, 'contains(remake)': False, 'contains(genuine)': False, 'contains(latest)': False, 'contains(sharp)': False, 'contains(moment)': False, 'contains(usual)': False, 'contains(rock)': False, 'contains(tired)': False, 'contains(animated)': False, 'contains(change)': False, "contains(you'd)": False, 'contains(disney)': False, 'contains(bland)': False, 'contains(gorgeous)': False, 'contains(future)': False, 'contains(nice)': False, 'contains(quiet)': False, 'contains(sci-fi)': False, 'contains(add)': False, 'contains(witty)': False, 'contains(adaptation)': False, 'contains(strange)': False, "contains(i've)": False, 'contains(perfectly)': False, 'contains(la)': False, 'contains(epic)': False, 'contains(knows)': False, 'contains(\x96)': False, 'contains(vision)': False, 'contains(hope)': False, 'contains(until)': False, 'contains(gentle)': False, 'contains(effective)': False, 'contains(points)': False, 'contains(wonder)': False, 'contains(merely)': False, 'contains(maybe)': False, 'contains(period)': False, 'contains(offer)': False, 'contains(plenty)': False, 'contains(thanks)': False, 'contains(impressive)': False, 'contains(worthy)': False, 'contains(events)': False, 'contains(deep)': False, 'contains(parents)': False, 'contains(somewhat)': False, 'contains(dead)': False, 'contains(depth)': False, 'contains(appealing)': False, 'contains(worse)': False, 'contains(taking)': False, 'contains(beauty)': False, 'contains(begins)': False, 'contains(awful)': False, 'contains(however)': False, 'contains(lots)': False, 'contains(surprise)': False, 'contains(woman)': False, 'contains(sit)': False, 'contains(guy)': False, 'contains(doing)': False, "contains(year's)": False, 'contains(definitely)': False, 'contains(straight)': False, 'contains(hit)': False, 'contains(clear)': False, 'contains(fantasy)': False, 'contains(career)': False, 'contains(provides)': False, 'contains(decent)': False, 'contains(ambitious)': False, 'contains(pure)': False, 'contains(unfortunately)': False, 'contains(someone)': False, 'contains(air)': False, 'contains(try)': False, 'contains(stupid)': False, 'contains(age)': False, 'contains(writer-director)': False, 'contains(captures)': False, 'contains(emotions)': False, 'contains(important)': False, 'contains(highly)': False, 'contains(execution)': False, 'contains(welcome)': False, 'contains(subtle)': False, 'contains(pictures)': False, 'contains(throughout)': False, 'contains(robert)': False, 'contains(run)': False, 'contains(able)': False, 'contains(inside)': False, 'contains(magic)': False, 'contains(school)': False, 'contains(suffers)': False, 'contains(exciting)': False, 'contains(thin)': False, 'contains(utterly)': False, 'contains(historical)': False, 'contains(sequences)': False, 'contains(view)': False, 'contains(ugly)': False, 'contains(scary)': False, 'contains(sound)': False, 'contains(pace)': False, 'contains(ii)': False, 'contains(brings)': False, 'contains(examination)': False, 'contains(female)': False, 'contains(deserves)': False, 'contains(read)': False, 'contains(cheap)': False, 'contains(relationship)': False, 'contains(sustain)': False, 'contains(ensemble)': False, 'contains(process)': False, 'contains(sexual)': False, 'contains(lovely)': False, 'contains(fire)': False, 'contains(certain)': False, 'contains(provocative)': False, 'contains(based)': False, 'contains(coming)': False, 'contains(alone)': False, 'contains(creative)': False, 'contains(playing)': False, 'contains(quickly)': False, 'contains(city)': False, 'contains(hand)': False, 'contains(upon)': False, 'contains(poignant)': False, 'contains(single)': False, 'contains(cartoon)': False, 'contains(major)': False, 'contains(across)': False, 'contains(impact)': False, 'contains(memory)': False, 'contains(wants)': False, 'contains(tension)': False, 'contains(working)': False, 'contains(use)': False, 'contains(low)': False, 'contains(chemistry)': False, 'contains(cute)': False, 'contains(deal)': False, 'contains(felt)': False, 'contains(potential)': False, 'contains(except)': False, 'contains(middle)': False, 'contains(flaws)': False, 'contains(words)': False, 'contains(used)': False, 'contains(delightful)': False, 'contains(question)': False, 'contains(actress)': False, 'contains(2)': False, 'contains(rest)': False, 'contains(force)': False, 'contains(flawed)': False, 'contains(bond)': False, 'contains(touch)': False, 'contains(puts)': False, 'contains(taken)': False, 'contains(filled)': False, 'contains(sensitive)': False, 'contains(generic)': False, 'contains(stand)': False, 'contains(unexpected)': False, 'contains(cultural)': False, 'contains(winning)': False, 'contains(waste)': False, 'contains(lacking)': False, 'contains(talented)': False, 'contains(murder)': False, 'contains(yes)': False, 'contains(mediocre)': False, 'contains(creates)': False, 'contains(master)': False, 'contains(unfunny)': False, 'contains(sentimental)': False, 'contains(success)': False, 'contains(loud)': False, 'contains(odd)': False, 'contains(situation)': False, 'contains(dog)': False, 'contains(melodramatic)': False, 'contains(hardly)': False, 'contains(weird)': False, 'contains(sincere)': False, 'contains(cut)': False, 'contains(hell)': False, 'contains(giving)': False, 'contains(unsettling)': False, 'contains(eye)': False, 'contains(cannot)': False, 'contains(heavy)': False, 'contains(apart)': False, 'contains(college)': False, 'contains(hold)': False, 'contains(previous)': False, 'contains(era)': False, 'contains(remember)': False, 'contains(relationships)': False, 'contains(house)': False, 'contains(mildly)': False, 'contains(surprises)': False, 'contains(slight)': False, 'contains(slightly)': False, 'contains(mark)': False, 'contains(formulaic)': False, 'contains(seriously)': False, 'contains(reveals)': False, 'contains(supposed)': False, 'contains(ability)': False, 'contains(routine)': False, 'contains(watchable)': False, 'contains(saw)': False, 'contains(issues)': False, 'contains(ago)': False, 'contains(convincing)': False, 'contains(ultimate)': False, 'contains(country)': False, 'contains(class)': False, 'contains(create)': False, 'contains(extremely)': False, 'contains(*)': False, 'contains(crazy)': True, 'contains(stylish)': False, 'contains(fully)': False, 'contains(amount)': False, 'contains(leads)': False, 'contains(old-fashioned)': False, 'contains(crush)': False, 'contains(living)': False, 'contains(course)': False, 'contains(treat)': False, 'contains(focus)': False, 'contains(contemporary)': False, 'contains(terms)': False, 'contains(ones)': False, 'contains(attempts)': False, 'contains(trouble)': False, 'contains(pop)': False, 'contains(pleasant)': False, 'contains(forgettable)': False, 'contains(episode)': False, 'contains(sets)': False, 'contains(uneven)': False, 'contains(pacing)': False, 'contains(intimate)': False, 'contains(twists)': False, 'contains(inventive)': False, 'contains(finds)': False, 'contains(stars)': False, 'contains(plain)': False, 'contains(indeed)': False, 'contains(grace)': False, 'contains(grant)': False, 'contains(money)': False, 'contains(road)': False, 'contains(thinking)': False, 'contains(largely)': False, 'contains(five)': False, 'contains(joke)': False, 'contains(date)': False, 'contains(succeeds)': False, 'contains(e)': False, 'contains(george)': False, 'contains(involved)': False, 'contains(steven)': False, 'contains(mix)': False, 'contains(thrills)': False, 'contains(gripping)': False, 'contains(tragic)': False, "contains(aren't)": False, 'contains(casting)': False, 'contains(extreme)': False, 'contains(artist)': False, 'contains(heaven)': False, 'contains(soundtrack)': False, 'contains(promise)': False, 'contains(appears)': False, 'contains(water)': False, 'contains(es)': False, 'contains(business)': False, 'contains(yourself)': False, 'contains(involving)': False, 'contains(missing)': False, 'contains(drag)': False, 'contains(problems)': False, 'contains(called)': False, 'contains(happens)': False, 'contains(disturbing)': False, 'contains(substance)': False, 'contains(masterpiece)': False, 'contains(runs)': False, 'contains(successful)': False, 'contains(complete)': False, 'contains(absolutely)': False, 'contains(painful)': False, 'contains(badly)': False, 'contains(themes)': False, "contains(she's)": False, "contains(we've)": False, 'contains(williams)': False, 'contains(couple)': False, 'contains(happy)': False, 'contains(considerable)': False, 'contains(colorful)': False, 'contains(york)': False, 'contains(unique)': False, 'contains(friendship)': False, 'contains(poetry)': False, 'contains(recommend)': False, 'contains(presents)': False, 'contains(goofy)': False, 'contains(evil)': False, 'contains(triumph)': False, 'contains(british)': False, 'contains(somehow)': False, "contains(couldn't)": False, 'contains(urban)': False, 'contains(skin)': False, 'contains(refreshing)': False, 'contains([a])': False, 'contains(target)': False, 'contains(situations)': False, 'contains(flicks)': False, 'contains(viewing)': False, 'contains(person)': False, 'contains(politics)': False, 'contains(blend)': False, 'contains(bright)': False, 'contains(soul)': False, 'contains(terrible)': False, 'contains(oscar)': False, 'contains(originality)': False, 'contains(equally)': False, 'contains(effect)': False, 'contains(tom)': False, 'contains(strangely)': False, 'contains(share)': False, 'contains(typical)': False, 'contains(parts)': False, "contains(man's)": False, 'contains(wanted)': False, 'contains(mean)': False, 'contains(bizarre)': False, 'contains(gay)': False, 'contains(forced)': False, 'contains(interested)': False, 'contains(absorbing)': False, 'contains(played)': False, 'contains(forget)': False, 'contains(sentimentality)': False, 'contains(meditation)': False, 'contains(pieces)': False, 'contains(manner)': False, 'contains(hits)': False, 'contains(imax)': False, 'contains(loses)': False, 'contains(general)': False, 'contains(night)': False, 'contains(dry)': False, 'contains(alive)': False, 'contains(central)': False, 'contains(miss)': False, 'contains(somewhere)': False, 'contains(fast)': False, 'contains(tells)': False, 'contains(poor)': False, 'contains(created)': False, 'contains(monster)': False, 'contains(frame)': False, 'contains(painfully)': False, 'contains(said)': False, 'contains(company)': False, 'contains(jackson)': False, 'contains(battle)': False, 'contains(virtually)': False, 'contains(questions)': False, 'contains(standard)': False, 'contains(conflict)': False, 'contains(el)': False, 'contains(loss)': False, 'contains(television)': False, 'contains(well-acted)': False, 'contains(doubt)': False, 'contains(setting)': False, "contains(director's)": False, 'contains(report)': False, 'contains(franchise)': False, 'contains(derivative)': False, 'contains(90)': False, 'contains(word)': False, 'contains(whatever)': False, 'contains(dream)': False, 'contains(stunning)': False, 'contains(liked)': False, 'contains(obviously)': False, 'contains(means)': False, 'contains(crafted)': False, 'contains(twist)': False, 'contains(clichés)': False, 'contains(sophisticated)': False, 'contains(please)': False, 'contains(eventually)': False, 'contains(name)': False, 'contains(hate)': False, 'contains(fan)': False, 'contains(lame)': False, 'contains(fare)': False, 'contains(average)': False, 'contains(grief)': False, 'contains(understand)': False, 'contains(haunting)': False, 'contains(energetic)': False, 'contains(depressing)': False, 'contains(sexy)': False, 'contains(imaginative)': False, 'contains(sitting)': False, 'contains(ms)': False, 'contains(clearly)': False, 'contains(conventional)': False, 'contains(niro)': False, 'contains(japanese)': False, 'contains(amazing)': False, 'contains(places)': False, 'contains(remarkably)': False, 'contains(affecting)': False, 'contains(footage)': False, 'contains(red)': False, 'contains(una)': False, 'contains(superficial)': False, 'contains(unlike)': False, 'contains(blue)': False, 'contains(atmosphere)': False, 'contains(warmth)': False, 'contains(popcorn)': False, 'contains(slapstick)': False, 'contains(treasure)': False, 'contains(riveting)': False, 'contains(weak)': False, 'contains(finish)': False, 'contains(worthwhile)': False, 'contains(tough)': False, 'contains(room)': False, 'contains(excitement)': False, 'contains(essentially)': False, 'contains(genuinely)': False, 'contains(wedding)': False, 'contains(toward)': False, 'contains(inspired)': False, 'contains(insightful)': False, 'contains(break)': False, 'contains(holds)': False, 'contains(girls)': False, 'contains(edge)': False, 'contains(opportunity)': False, 'contains(huge)': False, 'contains(lets)': False, 'contains(fat)': False, 'contains(refreshingly)': False, 'contains(match)': False, 'contains(faith)': False, 'contains(boys)': False, 'contains(generally)': False, 'contains(vivid)': False, 'contains(heavy-handed)': False, 'contains(let)': False, 'contains(thought-provoking)': False, 'contains(white)': False, 'contains(allows)': False, 'contains(brain)': False, 'contains(lines)': False, 'contains(deliver)': False, 'contains(price)': False, 'contains(possibly)': False, 'contains(simplistic)': False, 'contains(america)': False, 'contains(fit)': False, 'contains(2002)': False, 'contains(equivalent)': False, 'contains(large)': False, 'contains(shallow)': False, 'contains(particular)': False, 'contains(aside)': False, 'contains(lazy)': False, 'contains(minor)': False, 'contains(balance)': False, 'contains(needed)': False, 'contains(s)': False, "contains(hasn't)": False, 'contains(wish)': False, 'contains(intended)': False, 'contains(affair)': False, 'contains(heartfelt)': False, 'contains(believable)': False, 'contains(delicate)': False, 'contains(guilty)': False, 'contains(powers)': False, 'contains(within)': False, 'contains(filmed)': False, 'contains(wildly)': False, 'contains(unusual)': False, 'contains(green)': False, "contains(we're)": False, 'contains(murphy)': False, 'contains(purpose)': False, 'contains(x)': False, 'contains(ice)': False, 'contains(humanity)': False, 'contains(pay)': False, 'contains(spielberg)': False, 'contains(wait)': False, 'contains(trip)': False, 'contains(crowd)': False, 'contains(fiction)': False, 'contains(efforts)': False, 'contains(car)': False, 'contains(kid)': False, 'contains(usually)': False, 'contains(charisma)': False, 'contains(slice)': False, 'contains(core)': False, 'contains(damned)': False, 'contains(spectacle)': False, 'contains(peter)': False, 'contains(treatment)': False, 'contains(writer)': False, "contains(wouldn't)": True, 'contains(skill)': False, 'contains(god)': False, 'contains(quietly)': False, 'contains(gangster)': False, 'contains(funnier)': False, 'contains(vehicle)': False, 'contains(mesmerizing)': False, 'contains(empty)': False, 'contains(credits)': False, 'contains(directorial)': False, 'contains(longer)': False, 'contains(theme)': False, 'contains(combination)': False, 'contains(fear)': False, 'contains(realistic)': False, 'contains(sum)': False, 'contains(extraordinary)': False, 'contains(talk)': False, 'contains(open)': False, 'contains(score)': False, 'contains(universal)': False, 'contains(wife)': False, 'contains(spiritual)': False, 'contains(directors)': False, 'contains(natural)': False, "contains(who's)": False, 'contains(sounds)': False, 'contains(promising)': False, 'contains(editing)': False, 'contains(further)': False, "contains(wasn't)": False, 'contains(fashion)': False, 'contains(festival)': False, 'contains(offering)': False, 'contains(mindless)': False, 'contains(sports)': False, 'contains(motion)': False, 'contains(figure)': False, 'contains(decades)': False, 'contains(spectacular)': False, 'contains(meaning)': False, 'contains(deeper)': False, 'contains(delight)': False, 'contains(sequence)': False, 'contains(ridiculous)': False, 'contains(sea)': False, 'contains(space)': False, 'contains(revenge)': False, 'contains(deftly)': False, "contains(i'd)": False, 'contains(indie)': False, 'contains(greatest)': False, 'contains(poorly)': False, 'contains(dreams)': False, 'contains(bears)': False, 'contains(stay)': False, 'contains(devoid)': False, 'contains(exhilarating)': False, 'contains(detail)': False, 'contains(stale)': False, 'contains(telling)': False, 'contains(party)': False, 'contains(martin)': False, 'contains(cinematography)': False, 'contains(awkward)': False, 'contains(shame)': False, 'contains(surface)': False, 'contains(j)': False, 'contains(turned)': False, 'contains(accessible)': False, 'contains(blade)': False, 'contains(value)': False, 'contains(win)': False, 'contains(daring)': False, 'contains(visuals)': False, 'contains(repetitive)': False, 'contains(number)': False, 'contains(expected)': False, 'contains(free)': False, 'contains(identity)': False, 'contains(intense)': False, 'contains(10)': False, 'contains(exploration)': False, 'contains(crimes)': False, 'contains(pointless)': False, 'contains(pleasures)': False, 'contains(overly)': False, 'contains(justice)': False, 'contains(release)': False, 'contains(roger)': False, 'contains(stage)': False, 'contains(irritating)': False, 'contains(credit)': False, 'contains(members)': False, 'contains(oddly)': False, 'contains(kevin)': False, 'contains(gem)': False, 'contains(holes)': False, 'contains(gross-out)': False, 'contains(prove)': False, 'contains(poetic)': False, 'contains(society)': False, 'contains(development)': False, 'contains(shots)': False, 'contains(generation)': False, 'contains(represents)': False, 'contains(century)': False, 'contains(talking)': False, 'contains(behavior)': False, 'contains(sight)': False, 'contains(paced)': False, 'contains(allen)': False, 'contains(dreary)': False, 'contains(stunts)': False, 'contains(values)': False, 'contains(endearing)': False, 'contains(complicated)': False, 'contains(frequently)': False, 'contains(king)': False, 'contains(striking)': False, 'contains(count)': False, 'contains(constructed)': False, 'contains(james)': False, 'contains(affection)': False, 'contains(manipulative)': False, 'contains(profound)': False, 'contains(strength)': False, 'contains(reading)': False, 'contains(consider)': False, 'contains(public)': False, 'contains(disguise)': False, 'contains(chase)': False, 'contains(move)': False, 'contains(provide)': False, 'contains(performers)': False, 'contains(perspective)': False, 'contains(farce)': False, 'contains(avoid)': False, 'contains(results)': False, 'contains(desire)': False, 'contains(\x97)': False, "contains(haven't)": False, 'contains(achieves)': False, 'contains(admirable)': False, 'contains(levels)': False, 'contains(main)': False, 'contains(serves)': False, 'contains(bits)': False, 'contains(voice)': False, 'contains(games)': False, 'contains(top)': False, 'contains(designed)': False, 'contains(ground)': False, 'contains(brown)': False, 'contains(subjects)': False, 'contains(blood)': False, 'contains(songs)': False, 'contains(chance)': False, 'contains(fears)': False, 'contains(happen)': False, 'contains(enjoyed)': False, 'contains(marks)': False, 'contains(nowhere)': False, 'contains(glimpse)': False, 'contains(concerned)': False, 'contains(offensive)': False, 'contains(group)': False, 'contains(machine)': False, 'contains(struggle)': False, 'contains(shake)': False, 'contains(ages)': False, 'contains(folks)': False, 'contains(unless)': False, 'contains(nonsense)': False, 'contains(return)': False, 'contains(determined)': False, 'contains(tribute)': False, 'contains(attraction)': False, 'contains(ghost)': False, 'contains(incredibly)': False, 'contains(imagery)': False, 'contains(frustrating)': False, 'contains(beat)': False, 'contains(wise)': False, "contains(story's)": False, 'contains(necessary)': False, 'contains(screenwriter)': False, 'contains(intentions)': False, 'contains(waiting)': False, 'contains(emerges)': False, 'contains(chilling)': False, 'contains(hackneyed)': False, 'contains(predecessor)': False, 'contains(commercial)': False, 'contains(stands)': False, 'contains(artistic)': False, 'contains(save)': False, 'contains(friends)': False, 'contains(loved)': False, 'contains(nicely)': False, 'contains(diverting)': False, 'contains(beneath)': False, 'contains(courage)': False, 'contains(um)': False, 'contains(tiresome)': False, 'contains(failure)': False, 'contains(delivered)': False, 'contains(using)': False, 'contains(walk)': False, 'contains(thinks)': False, 'contains(produced)': False, 'contains(challenging)': False, 'contains(follow)': False, 'contains(yarn)': False, 'contains(presence)': False, 'contains(structure)': False, 'contains(giant)': False, 'contains(intrigue)': False, 'contains(del)': False, 'contains(damn)': False, 'contains(example)': False, 'contains(clumsy)': False, 'contains(ring)': False, 'contains(pulls)': False, 'contains(raw)': False, 'contains(overcome)': False, 'contains(adam)': False, 'contains(killer)': False, 'contains(musical)': False, 'contains(hot)': False, 'contains(friday)': False, 'contains(buy)': False, 'contains(community)': False, 'contains(trifle)': False, 'contains(numbers)': False, 'contains(moviemaking)': False, 'contains(weight)': False, 'contains(grows)': False, 'contains(reach)': False, 'contains(father)': False, 'contains(fall)': False, 'contains(digital)': False, 'contains(eight)': False, 'contains(violent)': False, 'contains(industry)': False, 'contains(jason)': False, 'contains(b-movie)': False, 'contains(emotion)': False, 'contains(delivery)': False, 'contains(humorous)': False, 'contains(list)': False, 'contains(grand)': False, 'contains(storyline)': False, 'contains(apparently)': False, 'contains(damage)': False, 'contains(realism)': False, 'contains(inspiring)': False, 'contains(desperate)': False, 'contains(national)': False, 'contains(matters)': False, 'contains(cause)': False, 'contains(wonderfully)': False, 'contains(un)': False, 'contains(search)': False, "contains(characters')": False, 'contains(surely)': False, 'contains(talents)': False, "contains(i'll)": False, "contains(world's)": False, 'contains(adolescent)': False, 'contains(modest)': False, 'contains(hip-hop)': False, 'contains(today)': False, 'contains(mike)': False, 'contains(vibrant)': False, 'contains(winds)': False, 'contains(precious)': False, 'contains(twice)': False, 'contains(body)': False, 'contains(broad)': False, 'contains(annoying)': False, 'contains(favor)': False, 'contains(outrageous)': False, 'contains(unpleasant)': False, 'contains(comedic)': False, 'contains(bore)': False, 'contains(land)': False, 'contains(overwrought)': False, 'contains(meandering)': False, 'contains(dance)': False, 'contains(document)': False, 'contains(deserve)': False, 'contains(chris)': False, 'contains(parker)': False, 'contains(jones)': False, 'contains(spend)': False, 'contains(budget)': False, 'contains(accomplished)': False, 'contains(seat)': False, 'contains(chinese)': False, 'contains(first-time)': False, 'contains(disappointing)': False, 'contains(team)': False, 'contains(vs)': False, 'contains(roles)': False, 'contains(monty)': False, 'contains(dazzling)': False, 'contains(stock)': False, 'contains(adult)': False, 'contains(present)': False, 'contains(tender)': False, "contains('the)": False, 'contains(early)': False, 'contains(creating)': False, 'contains(well-made)': False, 'contains(sheer)': False, 'contains(standards)': False, 'contains(directing)': False, 'contains(authentic)': False, 'contains(queen)': False, 'contains(type)': False, 'contains(mainstream)': False, 'contains(funniest)': False, 'contains(scenario)': False, 'contains(maudlin)': False, 'contains(flair)': False, 'contains(bittersweet)': False, 'contains(studio)': False, 'contains(fair)': False, 'contains(bunch)': False, 'contains(moviegoers)': False, 'contains(superior)': False, 'contains(wry)': False, 'contains(excuse)': False, 'contains(sappy)': False, 'contains(foreign)': False, 'contains(mile)': False, 'contains(forgotten)': False, 'contains(near)': False, 'contains(depiction)': False, 'contains(late)': False, 'contains(including)': False, 'contains(territory)': False, 'contains(source)': False, 'contains(son)': False, 'contains(xxx)': False, 'contains(soon)': False, 'contains(brought)': False, 'contains(gritty)': False, 'contains(starring)': False, 'contains(lesson)': False, 'contains(featuring)': False, 'contains(pass)': False, 'contains(stays)': False, 'contains(harvard)': False, 'contains(surreal)': False, 'contains(sign)': False, 'contains(served)': False, 'contains(plotting)': False, 'contains(harmless)': False, "contains(here's)": False, 'contains(writer/director)': False, 'contains(moves)': False, 'contains(mother)': False, 'contains(relatively)': False, 'contains(frank)': False, 'contains(mention)': False, 'contains(showing)': False, 'contains(worked)': False, 'contains(dangerous)': False, 'contains(complexity)': False, 'contains(growing)': False, 'contains(arnold)': False, "contains(woman's)": False, 'contains(playful)': False, 'contains(male)': False, 'contains(secrets)': False, 'contains(compassion)': False, 'contains(pokemon)': False, 'contains(addition)': False, 'contains(unfolds)': False, 'contains(personality)': False, 'contains(lies)': False, 'contains(beginning)': False, 'contains(state)': False, 'contains(romp)': False, 'contains(italian)': False, 'contains(carries)': False, 'contains(retread)': False, 'contains(ryan)': False, 'contains(fantastic)': False, 'contains(cliche)': False, 'contains(angst)': False, 'contains(mild)': False, 'contains(becoming)': False, 'contains(slick)': False, 'contains(paid)': False, 'contains(zone)': False, 'contains(die)': False, 'contains(faithful)': False, 'contains(heartwarming)': False, 'contains(eccentric)': False, 'contains(chan)': False, 'contains(sitcom)': False, 'contains(woody)': False, 'contains(cynical)': False, 'contains(reign)': False, 'contains(brothers)': False, 'contains(consistently)': False, 'contains(mayhem)': False, 'contains(self-indulgent)': False, 'contains(reasonably)': False, 'contains(&)': False, 'contains(increasingly)': False, 'contains(aspects)': False, 'contains(confusing)': False, 'contains(revolution)': False, 'contains(morality)': False, 'contains(thrilling)': False, 'contains(philosophical)': False, 'contains(wears)': False, 'contains(fight)': False, 'contains(song)': False, 'contains(bullock)': False, 'contains(features)': False, 'contains(check)': False, 'contains(escape)': False, 'contains(lively)': False, 'contains(experiences)': False, 'contains(joy)': False, 'contains(cautionary)': False, 'contains(fable)': False, 'contains(low-budget)': False, 'contains(feel-good)': False, 'contains(empathy)': False, 'contains(vividly)': False, 'contains(metaphor)': False, 'contains(pain)': False, 'contains(choices)': False, 'contains(common)': False, 'contains(notion)': False, 'contains(holiday)': False, 'contains(greek)': False, 'contains(sloppy)': False, 'contains(roll)': False, 'contains(respect)': False, 'contains(conclusion)': False, 'contains(trick)': False, 'contains(mistake)': False, 'contains(disaster)': False, 'contains(spoof)': False, 'contains(downright)': False, 'contains(stuck)': False, 'contains(teacher)': False, 'contains(fisher)': False, 'contains(potentially)': False, 'contains(front)': False, 'contains(ordinary)': False, 'contains(rises)': False, 'contains(mixed)': False, 'contains(sick)': False, 'contains(snow)': False, 'contains(cliché)': False, 'contains(vulgar)': False, 'contains(bored)': False, 'contains(details)': False, 'contains(step)': False, 'contains(spooky)': False, 'contains(technical)': False, 'contains(sympathy)': False, 'contains(vampire)': False, 'contains(patience)': False, 'contains(logic)': False, 'contains(suspenseful)': False, 'contains(rhythms)': False, 'contains(families)': False, 'contains(constantly)': False, 'contains(hearts)': False, 'contains(visceral)': False, 'contains(finding)': False, 'contains(myself)': False, 'contains(messages)': False, 'contains(hey)': False, 'contains(iranian)': False, 'contains(literally)': False, 'contains(belongs)': False, 'contains(protagonist)': False, 'contains(reno)': False, 'contains(length)': False, 'contains(demands)': False, 'contains(event)': False, 'contains(wasted)': False, 'contains(appreciate)': False, 'contains(intensity)': False, 'contains(willing)': False, 'contains(acts)': False, 'contains(van)': False, 'contains(third)': False, 'contains(cheesy)': False, 'contains(biggest)': False, 'contains(went)': False, "contains(children's)": False, 'contains(austin)': False, 'contains(martha)': False, 'contains(spark)': False, 'contains(low-key)': False, 'contains(brother)': False, 'contains(totally)': False, 'contains(revealing)': False, 'contains(following)': False, 'contains(center)': False, 'contains(literary)': False, 'contains(polished)': False, 'contains(laughter)': False, 'contains(resonant)': False, 'contains(capable)': False, 'contains(amateurish)': False, 'contains(solondz)': False, 'contains(creativity)': False, 'contains(stomach)': False, 'contains(drawn)': False, 'contains(desperately)': False, 'contains(stirring)': False, 'contains(due)': False, 'contains(safe)': False, 'contains(product)': False, 'contains(caper)': False, 'contains(punch)': False, 'contains(persona)': False, 'contains(makers)': False, 'contains(preposterous)': False, 'contains(plodding)': False, 'contains(speaking)': False, 'contains(capture)': False, 'contains(band)': False, 'contains(assured)': False, 'contains(nasty)': False, 'contains(science)': False, 'contains(south)': False, 'contains(leaving)': False, 'contains(pity)': False, 'contains(elegant)': False, 'contains(utter)': False, 'contains(unlikely)': False, 'contains(banal)': False, 'contains(t)': False, 'contains(strictly)': False, 'contains(sequels)': False, 'contains(sade)': False, 'contains(sandler)': False, 'contains(brutal)': False, 'contains(resonance)': False, 'contains(detailed)': False, 'contains(manage)': False, 'contains(over-the-top)': False, 'contains(captivating)': False, 'contains(conviction)': False, 'contains(cloying)': False, 'contains(spare)': False, 'contains(collection)': False, 'contains(intellectual)': False, 'contains(20)': False, 'contains(took)': False, 'contains(asks)': False, 'contains(child)': False, 'contains(sides)': False, 'contains(real-life)': False, 'contains(christmas)': False, 'contains(horrible)': False, 'contains(likable)': False, 'contains(pinocchio)': False, 'contains(older)': False, 'contains(race)': True, 'contains(basic)': False, 'contains(afraid)': False, 'contains(actresses)': False, 'contains(self-conscious)': False, 'contains(lifeless)': False, 'contains(signs)': False, 'contains(required)': False, 'contains(lyrical)': False, 'contains(wacky)': False, 'contains(bag)': False, 'contains(realized)': False, 'contains(skip)': False, 'contains(trite)': False, 'contains(reminds)': False, 'contains(teens)': False, 'contains(sugar)': False, 'contains(honesty)': False, 'contains(ludicrous)': False, 'contains(silliness)': False, 'contains(slowly)': False, 'contains(winner)': False, 'contains(tales)': False, 'contains(outside)': False, 'contains(embarrassment)': False, 'contains(pull)': False, 'contains(offbeat)': False, 'contains(artists)': False, 'contains(suggests)': False, 'contains(mainly)': False, 'contains(tasty)': False, 'contains(subversive)': False, 'contains(food)': False, 'contains(control)': False, 'contains(wars)': False, 'contains(clarity)': False, 'contains(pathetic)': False, 'contains(wow)': False, 'contains(entertain)': False, 'contains(seagal)': False, 'contains(supporting)': False, 'contains(dragon)': False, 'contains(admire)': False, 'contains(animal)': False, "contains('70s)": False, 'contains(fatal)': False, 'contains(released)': False, 'contains(rewarding)': False, 'contains(preachy)': False, 'contains(minute)': False, 'contains(birthday)': False, 'contains(cult)': False, 'contains(charms)': False, 'contains(channel)': False, 'contains(b)': False, 'contains(screenwriting)': False, 'contains(knowing)': False, 'contains(blair)': False, 'contains(sadly)': False, 'contains(observations)': False, 'contains(predictably)': False, 'contains(whom)': False, 'contains(understanding)': False, 'contains(lady)': False, 'contains(directs)': False, 'contains(harry)': False, 'contains(fly)': False, 'contains(touches)': False, 'contains(hybrid)': False, 'contains(lousy)': False, 'contains(design)': False, 'contains(frida)': False, 'contains(content)': False, 'contains(barbershop)': False, 'contains(false)': False, 'contains(happened)': False, 'contains(closer)': False, 'contains([the)': False, 'contains(quick)': False, 'contains(bitter)': False, 'contains(uninspired)': False, 'contains(shock)': False, 'contains(bigger)': False, 'contains(degree)': False, 'contains(inept)': False, 'contains(seemingly)': False, 'contains(sentiment)': False, 'contains(traditional)': False, 'contains(predecessors)': False, 'contains(insights)': False, 'contains(bottom)': False, 'contains(onto)': False, 'contains(evocative)': False, 'contains(frontal)': False, 'contains(commentary)': False, 'contains(hip)': False, 'contains(transcends)': False, 'contains(bold)': False, 'contains(trek)': False, 'contains(key)': False, 'contains(current)': False, 'contains(finale)': False, 'contains(opening)': False, 'contains(poignancy)': False, 'contains(loose)': False, "contains(filmmaker's)": False, 'contains(glass)': False, 'contains(hill)': False, 'contains(learn)': False, 'contains(grow)': False, 'contains(showtime)': False, 'contains(miller)': False, 'contains(nostalgia)': False, 'contains(brilliantly)': False, 'contains(timely)': False, 'contains(pretension)': False, 'contains(account)': False, 'contains(credibility)': False, 'contains(tears)': False, 'contains(teenage)': False, 'contains(bite)': False, 'contains(catch)': False, 'contains(southern)': False, 'contains(memories)': False, 'contains(homage)': False, 'contains(stereotypes)': False, 'contains(spent)': False, 'contains(rap)': False, 'contains(kiss)': False, 'contains(record)': False, 'contains(packed)': False, 'contains(quest)': False, 'contains(twisted)': False, 'contains(realize)': False, 'contains(guns)': False, 'contains(rent)': False, 'contains(theaters)': False, 'contains(costumes)': False, 'contains(flashy)': False, 'contains(test)': False, 'contains(dealing)': False, 'contains(ask)': False, 'contains(helps)': False, "contains(one's)": False, 'contains(expectations)': False, 'contains(marriage)': False, 'contains(books)': False, 'contains(issue)': False, 'contains(inner)': False, 'contains(camp)': False, 'contains(saturday)': False, 'contains(spirited)': False, 'contains(shocking)': False, 'contains(uplifting)': False, 'contains(justify)': False, 'contains(notice)': False, 'contains(disappointed)': False, 'contains(seven)': False, 'contains(tour)': False, 'contains(earlier)': False, 'contains(amused)': False, 'contains(gradually)': False, 'contains(finest)': False, 'contains(charlie)': False, 'contains(format)': False, 'contains(onscreen)': False, 'contains(pat)': False, 'contains(fill)': False, 'contains(proceedings)': False, 'contains(poem)': False, 'contains(fierce)': False, 'contains(mere)': False, 'contains(stealing)': False, 'contains(earth)': False, 'contains(broken)': False, 'contains(understands)': False, 'contains(answers)': False, "contains(soderbergh's)": False, 'contains(teenagers)': False, 'contains(absurd)': False, 'contains(u)': False, 'contains(contrivances)': False, 'contains(husband)': False, 'contains(mixture)': False, 'contains(parable)': False, 'contains(chaotic)': False, 'contains(junk)': False, 'contains(menace)': False, 'contains(inoffensive)': False, 'contains(revelatory)': False, 'contains(lived)': False, 'contains(humour)': False, 'contains(context)': False, 'contains(timing)': False, 'contains(ingredients)': False, 'contains(saying)': False, 'contains(language)': False, 'contains(meant)': False, 'contains(distance)': False, 'contains(diversion)': False, 'contains(witch)': False, 'contains(saving)': False, 'contains(comfort)': False, 'contains(enterprise)': False, 'contains(con)': False, 'contains(figures)': False, 'contains(achievement)': False, 'contains(impression)': False, 'contains(em)': False, 'contains(graphic)': False, 'contains(bringing)': False, 'contains(noir)': False, 'contains(drugs)': False, 'contains(victims)': False, 'contains(changing)': False, 'contains(adds)': False, 'contains(subtlety)': False, 'contains(devastating)': False, 'contains(season)': False, 'contains(photography)': False, 'contains(effectively)': False, 'contains(equal)': False, 'contains(distinctive)': False, 'contains(computer)': False, 'contains(disbelief)': False, 'contains(nightmare)': False, 'contains(background)': False, 'contains(lawrence)': False, 'contains(honestly)': False, 'contains(drags)': False, 'contains(crude)': False, 'contains(dancing)': False, 'contains(importance)': False, 'contains(held)': False, 'contains(escapism)': False, 'contains(characterizations)': False, 'contains(paul)': False, 'contains(cliched)': False, 'contains(heartbreaking)': False, 'contains(relentless)': False, 'contains(park)': False, 'contains(dramatically)': False, 'contains(windtalkers)': False, 'contains(trapped)': False, 'contains(filme)': False, 'contains(davis)': False, 'contains(hong)': False, 'positivecount': 0, 'negativecount': 6, 'nouns': 6, 'verbs': 4, 'adjectives': 6, 'adverbs': 4, 'bigram(. .)': False, 'bigram(. the)': False, 'bigram(of the)': False, 'bigram(. a)': False, 'bigram(, but)': False, 'bigram(, and)': False, 'bigram(in the)': False, 'bigram(is a)': False, 'bigram(the film)': False, "bigram(. it's)": False, 'bigram(, the)': False, 'bigram(of a)': False, 'bigram(to the)': False, 'bigram(and the)': False, 'bigram(to be)': False, 'bigram(the movie)': False, 'bigram(. this)': False, 'bigram(. it)': False, 'bigram(for the)': False, 'bigram(it is)': False, 'bigram(with a)': False, 'bigram(. an)': False, 'bigram(as a)': False, 'bigram(in a)': False, 'bigram(on the)': False, 'bigram(one of)': False, 'bigram(and a)': False, 'bigram(this is)': False, 'bigram(a movie)': False, "bigram(it's a)": False, 'bigram(, it)': False, 'bigram(. if)': False, 'bigram(with the)': False, 'bigram(film is)': False, 'bigram(like a)': False, 'bigram(, a)': False, 'bigram(for a)': False, 'bigram(it .)': False, 'bigram(the most)': False, 'bigram(. but)': False, 'bigram(but it)': False, 'bigram(film .)': False, 'bigram(of its)': False, 'bigram(movie .)': False, "bigram(, it's)": False, 'bigram(, this)': False, 'bigram(. i)': False, 'bigram(a film)': False, 'bigram(as the)': False, 'bigram(from the)': False, 'bigram(at the)': False, 'bigram(all the)': False, 'bigram(by the)': False, 'bigram(movie is)': False, 'bigram(but the)': False, 'bigram(in its)': False, 'bigram(is the)': False, 'bigram(. as)': False, 'bigram(more than)': False, 'bigram(kind of)': False, 'bigram(that is)': False, 'bigram(about the)': False, 'bigram(, with)': False, 'bigram(film that)': False, 'bigram(movie ,)': False, 'bigram(film ,)': False, "bigram(the film's)": False, 'bigram(the story)': False, 'bigram(to a)': False, 'bigram(this movie)': False, 'bigram(has a)': False, 'bigram(have been)': False, 'bigram(movie that)': False, 'bigram(that it)': False, 'bigram(to make)': False, 'bigram(that the)': False, 'bigram(. what)': False, 'bigram(into the)': False, 'bigram(. in)': False, 'bigram(out of)': False, 'bigram(in this)': False, 'bigram(the best)': False, 'bigram(, as)': False, 'bigram(as it)': False, 'bigram(a good)': False, 'bigram(, is)': False, "bigram(. ')": False, 'bigram(. one)': False, "bigram(but it's)": False, 'bigram(. ")': False, 'bigram(if you)': False, "bigram(. there's)": False, 'bigram(. while)': False, 'bigram(its own)': False, 'bigram(sense of)': False, 'bigram(this film)': False, 'bigram(. there)': False, 'bigram(the same)': False, 'bigram(enough to)': False, 'bigram(is an)': False, 'bigram(be a)': False, 'bigram(into a)': False, 'bigram(is that)': False, 'bigram(to see)': False, 'bigram(a lot)': False, 'bigram(is so)': False, 'bigram(. for)': False, 'bigram(is not)': False, 'bigram(, which)': False, 'bigram(-- and)': False, 'bigram(, in)': False, 'bigram(. like)': False, 'bigram(comedy .)': False, 'bigram(than a)': False, 'bigram(the first)': False, 'bigram(time .)': False, 'bigram(a few)': False, 'bigram(look at)': False, 'bigram(. you)': False, 'bigram(a little)': False, 'bigram(on a)': False, 'bigram(the characters)': False, 'bigram(the end)': False, 'bigram(. and)': False, 'bigram(of this)': False, 'bigram(. with)': False, 'bigram(from a)': False, 'bigram(of an)': False, 'bigram(than the)': False, 'bigram(may be)': False, 'bigram(the way)': False, 'bigram(, you)': False, 'bigram(there is)': False, 'bigram(funny ,)': False, "bigram(it's not)": False, 'bigram(story .)': False, 'bigram(. not)': False, 'bigram(a great)': False, 'bigram(and ,)': False, 'bigram(by a)': False, 'bigram(of his)': False, 'bigram(mr .)': False, 'bigram(the kind)': False, 'bigram(you can)': False, 'bigram(, i)': False, 'bigram(. even)': False, 'bigram(. though)': False, 'bigram(not a)': False, 'bigram(there are)': False, 'bigram(hard to)': False, 'bigram(like the)': False, 'bigram(so much)': False, 'bigram(to watch)': False, 'bigram(most of)': False, 'bigram(them .)': False, 'bigram(, even)': False, 'bigram(, if)': False, 'bigram(is one)': False, 'bigram(, who)': False, 'bigram(about a)': False, 'bigram(manages to)': False, 'bigram(of those)': False, 'bigram(would be)': False, 'bigram(for its)': False, 'bigram(romantic comedy)': False, 'bigram(want to)': False, 'bigram(and his)': False, 'bigram(such a)': False, 'bigram(the audience)': False, 'bigram(, or)': False, 'bigram(at least)': False, 'bigram(to have)': False, 'bigram(work .)': False, 'bigram(, not)': False, 'bigram(a very)': False, 'bigram(could have)': False, 'bigram(much of)': False, 'bigram(. despite)': False, 'bigram(it ,)': False, 'bigram(it has)': False, 'bigram(story ,)': False, 'bigram(with an)': False, 'bigram(as an)': False, 'bigram(have a)': False, 'bigram(in which)': False, 'bigram(that ,)': False, 'bigram(the plot)': False, 'bigram(through the)': False, 'bigram(trying to)': False, 'bigram(full of)': False, 'bigram(if the)': False, 'bigram(some of)': False, 'bigram(to get)': False, 'bigram(as if)': False, 'bigram(in his)': False, "bigram(the movie's)": False, 'bigram(with its)': False, 'bigram(and its)': False, 'bigram(. is)': False, 'bigram(characters .)': False, "bigram(if you're)": False, 'bigram(of it)': False, 'bigram(should be)': False, 'bigram(will be)': False, 'bigram(and an)': False, 'bigram(can be)': False, 'bigram(is ,)': False, "bigram(it doesn't)": False, 'bigram(lot of)': False, 'bigram(one .)': False, 'bigram(seems to)': False, 'bigram(up to)': False, 'bigram(. too)': False, 'bigram(if it)': False, 'bigram(on its)': False, "bigram(that it's)": False, 'bigram(too much)': False, 'bigram(would have)': False, 'bigram(. at)': False, 'bigram(life .)': False, 'bigram(portrait of)': False, 'bigram(sort of)': False, 'bigram(the only)': False, 'bigram(. just)': False, 'bigram(a bad)': False, 'bigram(a story)': False, 'bigram(as well)': False, 'bigram(characters ,)': False, 'bigram(piece of)': False, 'bigram(, ")': False, 'bigram(, so)': False, 'bigram(, though)': False, 'bigram(a bit)': False, 'bigram(this one)': False, 'bigram(of all)': False, 'bigram(rather than)': False, 'bigram(the whole)': False, 'bigram(when it)': False, 'bigram(" is)': False, 'bigram(, that)': False, 'bigram(. its)': False, 'bigram(at times)': False, 'bigram(drama .)': False, 'bigram(has the)': False, 'bigram(it was)': False, 'bigram(lack of)': False, 'bigram(not only)': False, 'bigram(. has)': False, 'bigram(be the)': False, 'bigram(funny .)': False, "bigram(it's the)": False, 'bigram(to say)': False, 'bigram(, like)': False, 'bigram(. all)': False, 'bigram(. although)': False, 'bigram(and it)': False, 'bigram(even if)': False, 'bigram(for all)': False, 'bigram(has been)': False, 'bigram(is just)': False, 'bigram(the script)': False, 'bigram(to do)': False, 'bigram(. no)': False, 'bigram(at a)': False, 'bigram(end ,)': False, 'bigram(film about)': False, 'bigram(have to)': False, 'bigram(in an)': False, 'bigram(the big)': False, 'bigram(the original)': False, 'bigram(the year)': False, "bigram(there's no)": False, 'bigram(to keep)': False, 'bigram(" the)': False, 'bigram(. so)': False, 'bigram(at its)': False, 'bigram(fun .)': False, 'bigram(it all)': False, 'bigram(it would)': False, 'bigram(just a)': False, 'bigram(tale of)': False, 'bigram(that makes)': False, 'bigram(the screen)': False, 'bigram(way .)': False, 'bigram(while the)': False, 'bigram() ,)': False, 'bigram(feels like)': False, 'bigram(is more)': False, 'bigram(it does)': False, 'bigram(that you)': False, 'bigram(the worst)': False, 'bigram(, no)': False, 'bigram(, one)': False, 'bigram(. director)': False, 'bigram(. when)': False, "bigram(and it's)": False, 'bigram(going to)': False, 'bigram(is as)': False, 'bigram(over the)': False, 'bigram(the last)': False, 'bigram(comedy that)': False, 'bigram(instead of)': False, 'bigram(may not)': False, 'bigram(screen .)': False, 'bigram(the performances)': False, 'bigram(those who)': False, 'bigram(to find)': False, 'bigram(to its)': False, 'bigram(, at)': False, 'bigram(, its)': False, 'bigram(, then)': False, 'bigram(-- but)': False, 'bigram(. that)': False, 'bigram(but not)': False, 'bigram(funny and)': False, 'bigram(not to)': False, 'bigram(that will)': False, 'bigram(the picture)': False, 'bigram(the right)': False, 'bigram(the time)': False, 'bigram(year .)': False, 'bigram(, an)': False, 'bigram(all of)': False, 'bigram(and even)': False, 'bigram(be .)': False, 'bigram(better than)': False, 'bigram(documentary .)': False, 'bigram(is .)': False, 'bigram(is in)': False, 'bigram(it may)': False, 'bigram(the cast)': False, 'bigram(too many)': False, 'bigram(way to)': False, 'bigram(which is)': False, 'bigram(( and)': False, 'bigram(, to)': False, 'bigram(, too)': False, 'bigram(a fascinating)': False, 'bigram(a long)': False, 'bigram(but a)': False, 'bigram(film with)': False, 'bigram(humor .)': False, 'bigram(might have)': False, 'bigram(story is)': False, 'bigram(the filmmakers)': False, 'bigram(the theater)': False, 'bigram(time ,)': False, 'bigram(when the)': False, 'bigram(, while)': False, 'bigram(a new)': False, 'bigram(all its)': False, 'bigram(and more)': False, 'bigram(and not)': False, 'bigram(audience .)': False, 'bigram(is to)': False, 'bigram(is too)': False, 'bigram(makes the)': False, "bigram(there's a)": False, 'bigram(to take)': False, 'bigram(version of)': False, 'bigram(what is)': False, 'bigram(. by)': False, 'bigram(. some)': False, 'bigram(as much)': False, 'bigram(by its)': False, 'bigram(characters and)': False, 'bigram(comedy ,)': False, 'bigram(fails to)': False, "bigram(it's hard)": False, 'bigram(make a)': False, 'bigram(make it)': False, 'bigram(movie with)': False, 'bigram(of their)': False, 'bigram(off the)': False, 'bigram(plays like)': False, 'bigram(should have)': False, 'bigram(the director)': False, 'bigram(work of)': False, 'bigram(, for)': False, 'bigram(, we)': False, 'bigram(a real)': False, 'bigram(but this)': False, 'bigram(exercise in)': False, 'bigram(people who)': False, 'bigram(performances .)': False, 'bigram(the fact)': False, 'bigram(the other)': False, 'bigram(the world)': False, 'bigram(well as)': False, 'bigram(, more)': False, 'bigram(-- the)': False, 'bigram(a big)': False, 'bigram(and then)': False, 'bigram(because it)': False, 'bigram(film has)': False, 'bigram(of these)': False, 'bigram(out to)': False, 'bigram(part of)': False, 'bigram(special effects)': False, 'bigram(than it)': False, 'bigram(the more)': False, 'bigram(the very)': False, 'bigram(times ,)': False, 'bigram(, especially)': False, 'bigram(a way)': False, 'bigram(about as)': False, 'bigram(but also)': False, 'bigram(characters are)': False, 'bigram(despite its)': False, 'bigram(even the)': False, 'bigram(far more)': False, 'bigram(good ,)': False, 'bigram(here .)': False, 'bigram(it a)': False, "bigram(it's also)": False, "bigram(it's just)": False, 'bigram(just as)': False, 'bigram(might be)': False, 'bigram(none of)': False, 'bigram(of what)': False, 'bigram(see it)': False, 'bigram(story and)': False, 'bigram(subject matter)': False, 'bigram(thriller .)': False, 'bigram(you have)': False, "bigram(, ')": False, 'bigram(-- a)': False, 'bigram(. more)': False, 'bigram(. we)': False, 'bigram(a more)': False, 'bigram(fact that)': False, 'bigram(film of)': False, 'bigram(here ,)': False, 'bigram(his own)': False, 'bigram(is about)': False, 'bigram(it makes)': False, 'bigram(it to)': False, "bigram(it's an)": False, 'bigram(minutes .)': False, 'bigram(moments of)': False, "bigram(that doesn't)": False, 'bigram(that has)': False, 'bigram(the actors)': False, 'bigram(tries to)': False, 'bigram(way ,)': False, 'bigram(what it)': False, 'bigram(. to)': False, 'bigram(a comedy)': False, 'bigram(able to)': False, 'bigram(all .)': False, 'bigram(and that)': False, 'bigram(entertainment .)': False, 'bigram(films .)': False, 'bigram(how to)': False, 'bigram(like this)': False, 'bigram(lots of)': False, 'bigram(make the)': False, 'bigram(makes it)': False, 'bigram(movies ,)': False, 'bigram(movies .)': False, 'bigram(much more)': False, 'bigram(not be)': False, 'bigram(one that)': False, 'bigram(out the)': False, 'bigram(performances ,)': False, 'bigram(series of)': False, 'bigram(that are)': False, 'bigram(to give)': False, 'bigram(up .)': False, 'bigram(up in)': False, 'bigram(way of)': False, 'bigram(work ,)': False, 'bigram(you might)': False, 'bigram(, yet)': False, "bigram(, you'll)": False, 'bigram(. nothing)': False, 'bigram(a compelling)': False, 'bigram(and in)': False, 'bigram(as its)': False, 'bigram(care about)': False, 'bigram(each other)': False, 'bigram(examination of)': False, 'bigram(for this)': False, 'bigram(heart .)': False, 'bigram(humor and)': False, 'bigram(in all)': False, 'bigram(likely to)': False, 'bigram(little more)': False, 'bigram(long ,)': False, 'bigram(looking for)': False, 'bigram(of love)': False, 'bigram(of movie)': False, 'bigram(or the)': False, 'bigram(so many)': False, 'bigram(story of)': False, 'bigram(story that)': False, 'bigram(that this)': False, 'bigram(the material)': False, 'bigram(the title)': False, 'bigram(to go)': False}
+2506
+In [34]:
+# the first sentence
+print(documents[0])
+# the pos tag features for this sentence
+print('num nouns', bigram_featuresets[0][0]['nouns'])
+print('num verbs', bigram_featuresets[0][0]['verbs'])
+print('num adjectives', bigram_featuresets[0][0]['adjectives'])
+print('num adverbs', bigram_featuresets[0][0]['adverbs'])
+(['if', 'welles', 'was', 'unhappy', 'at', 'the', 'prospect', 'of', 'the', 'human', 'race', 'splitting', 'in', 'two', ',', 'he', 'probably', "wouldn't", 'be', 'too', 'crazy', 'with', 'his', "great-grandson's", 'movie', 'splitting', 'up', 'in', 'pretty', 'much', 'the', 'same', 'way', '.'], 'neg')
+num nouns 6
+num verbs 4
+num adjectives 6
+num adverbs 4
+In [35]:
+# train a classifier and report accuracy
+train_set, test_set = bigram_featuresets[1000:], bigram_featuresets[:1000]
+classifier = nltk.NaiveBayesClassifier.train(train_set)
+nltk.classify.accuracy(classifier, test_set)
+Out[35]:
+0.73
+In [36]:
+## cross-validation ##
+# this function takes the number of folds, the feature sets
+# it iterates over the folds, using different sections for training and testing in turn
+#   it prints the accuracy for each fold and the average accuracy at the end
+def cross_validation_accuracy(num_folds, featuresets):
+    subset_size = int(len(featuresets)/num_folds)
+    accuracy_list = []
+    # iterate over the folds
+    for i in range(num_folds):
+        test_this_round = featuresets[(i*subset_size):][:subset_size]
+        train_this_round = featuresets[:(i*subset_size)] + featuresets[((i+1)*subset_size):]
+        # train using train_this_round
+        classifier = nltk.NaiveBayesClassifier.train(train_this_round)
+        # evaluate against test_this_round and save accuracy
+        accuracy_this_round = nltk.classify.accuracy(classifier, test_this_round)
+        print (i, accuracy_this_round)
+        accuracy_list.append(accuracy_this_round)
+    # find mean accuracy over all rounds
+    print ('mean accuracy', sum(accuracy_list) / num_folds)
+In [37]:
+# perform the cross-validation on the featuresets with word features and generate accuracy
+num_folds = 5
+cross_validation_accuracy(num_folds, featuresets)
+0 0.7326454033771107
+1 0.7448405253283302
+2 0.7439024390243902
+3 0.7603189493433395
+4 0.7378048780487805
+mean accuracy 0.7439024390243902
+In [ ]:
+ 
